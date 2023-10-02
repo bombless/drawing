@@ -1,0 +1,16 @@
+[package]
+name = "utils"
+version = "0.0.0"
+edition = "2021"
+authors = ["Jinlei Li <jinleili0@outlook.com>"]
+
+[dependencies]
+bytemuck = { version = "1.13", features = ["derive"] }
+png = "0.17"
+image = { version = "*" }
+wgpu = "0.17.1"
+glam = "0.24.2"
+winit = "0.27.5"
+app-surface = "0.3.1"
+pollster = "0.3.0"
+env_logger = "0.10.0"

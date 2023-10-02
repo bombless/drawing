@@ -1,0 +1,15 @@
+[package]
+name = "tutorial4-buffer"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+
+[dependencies]
+# NEW!
+bytemuck = { version = "1.13", features = ["derive"] }
+wgpu = "0.17.1"
+utils = { path = "./utils" }
+winit = "0.27.5"
+app-surface = "0.3.1"
+
