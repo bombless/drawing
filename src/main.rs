@@ -5,27 +5,8 @@ use utils::framework::{Action, run};
 use wgpu::util::DeviceExt;
 use winit::{dpi::PhysicalSize, window::WindowId};
 
-// 此属性标注数据的内存布局兼容 C-ABI，令其可用于着色器
-#[repr(C)]
-// derive 属性自动导入的这些 trait，令其可被存入缓冲区
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct ZoomUniform {
-    // glam 的数据类型不能直接用于 bytemuck
-    // 需要先将 Matrix4 矩阵转为一个 4x4 的浮点数数组
-    proj: [[f32; 4]; 4],
-}
+mod zoom;
 
-impl ZoomUniform {
-    fn new() -> Self {
-        Self {
-            proj: glam::Mat4::IDENTITY.to_cols_array_2d(),
-        }
-    }
-
-    fn update_proj(&mut self, zoom: &Zoom) {
-        self.proj = zoom.build_projection_matrix().to_cols_array_2d();
-    }
-}
 
 
 #[repr(C)]
@@ -81,23 +62,6 @@ const VERTICES: &[Vertex] = &[
 
 const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4, /* padding */ 0];
 
-struct Zoom {
-    zoom: [[f32; 4]; 4],
-}
-
-impl Zoom {
-    fn new() -> Self {
-        Self { zoom: glam::Mat4::IDENTITY.to_cols_array_2d() }
-    }
-
-    fn build_projection_matrix(&self) -> glam::Mat4 {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let now = SystemTime::now();
-        let timestamp = now.duration_since(UNIX_EPOCH).unwrap().as_millis() as f64 / 1000.0;
-        let mat4 = glam::Mat4::from_translation(glam::vec3(timestamp.sin() as f32 * 0.3, 0.0, 0.0));
-        mat4
-    }
-}
 
 struct State {
     app: AppSurface,
@@ -106,8 +70,8 @@ struct State {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
-    zoom: Zoom,
-    zoom_uniform: ZoomUniform,
+    zoom: zoom::Zoom,
+    zoom_uniform: zoom::ZoomUniform,
     zoom_buffer: wgpu::Buffer,
     zoom_bind_group: wgpu::BindGroup,
 }
@@ -121,9 +85,9 @@ impl Action for State {
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
 
-        let zoom = Zoom::new();
+        let zoom = zoom::Zoom::new();
 
-        let mut zoom_uniform = ZoomUniform::new();
+        let mut zoom_uniform = zoom::ZoomUniform::new();
         zoom_uniform.update_proj(&zoom);
 
         let zoom_buffer = app.device.create_buffer_init(
