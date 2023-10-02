@@ -1,8 +1,32 @@
-use app_surface::{AppSurface, SurfaceFrame};
 use std::iter;
-use utils::framework::{run, Action};
+
+use app_surface::{AppSurface, SurfaceFrame};
+use utils::framework::{Action, run};
 use wgpu::util::DeviceExt;
 use winit::{dpi::PhysicalSize, window::WindowId};
+
+// 此属性标注数据的内存布局兼容 C-ABI，令其可用于着色器
+#[repr(C)]
+// derive 属性自动导入的这些 trait，令其可被存入缓冲区
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct ZoomUniform {
+    // glam 的数据类型不能直接用于 bytemuck
+    // 需要先将 Matrix4 矩阵转为一个 4x4 的浮点数数组
+    proj: [[f32; 4]; 4],
+}
+
+impl ZoomUniform {
+    fn new() -> Self {
+        Self {
+            proj: glam::Mat4::IDENTITY.to_cols_array_2d(),
+        }
+    }
+
+    fn update_proj(&mut self, zoom: &Zoom) {
+        self.proj = zoom.build_projection_matrix().to_cols_array_2d();
+    }
+}
+
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -57,6 +81,24 @@ const VERTICES: &[Vertex] = &[
 
 const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4, /* padding */ 0];
 
+struct Zoom {
+    zoom: [[f32; 4]; 4],
+}
+
+impl Zoom {
+    fn new() -> Self {
+        Self { zoom: glam::Mat4::IDENTITY.to_cols_array_2d() }
+    }
+
+    fn build_projection_matrix(&self) -> glam::Mat4 {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now = SystemTime::now();
+        let timestamp = now.duration_since(UNIX_EPOCH).unwrap().as_millis() as f64 / 1000.0;
+        let mat4 = glam::Mat4::from_translation(glam::vec3(timestamp.sin() as f32 * 0.3, 0.0, 0.0));
+        mat4
+    }
+}
+
 struct State {
     app: AppSurface,
     render_pipeline: wgpu::RenderPipeline,
@@ -64,6 +106,10 @@ struct State {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
+    zoom: Zoom,
+    zoom_uniform: ZoomUniform,
+    zoom_buffer: wgpu::Buffer,
+    zoom_bind_group: wgpu::BindGroup,
 }
 
 impl Action for State {
@@ -75,11 +121,52 @@ impl Action for State {
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
 
+        let zoom = Zoom::new();
+
+        let mut zoom_uniform = ZoomUniform::new();
+        zoom_uniform.update_proj(&zoom);
+
+        let zoom_buffer = app.device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Zoom Buffer"),
+                contents: bytemuck::cast_slice(&[zoom_uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            }
+        );
+        let zoom_bind_group_layout = app.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,     // 1
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,              // 2
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }
+            ],
+            label: Some("zoom_bind_group_layout"),
+        });
+
+        let zoom_bind_group = app.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &zoom_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: zoom_buffer.as_entire_binding(),
+                }
+            ],
+            label: Some("zoom_bind_group"),
+        });
+
         let render_pipeline_layout =
             app.device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
-                    bind_group_layouts: &[],
+                    bind_group_layouts: &[
+                        &zoom_bind_group_layout
+                    ],
                     push_constant_ranges: &[],
                 });
 
@@ -145,18 +232,23 @@ impl Action for State {
             });
         let num_indices = INDICES.len() as u32;
 
+
         Self {
             app,
             render_pipeline,
             vertex_buffer,
             index_buffer,
             num_indices,
+            zoom,
+            zoom_uniform,
+            zoom_buffer,
+            zoom_bind_group,
         }
     }
-
     fn get_adapter_info(&self) -> wgpu::AdapterInfo {
         self.app.adapter.get_info()
     }
+
     fn current_window_id(&self) -> WindowId {
         self.app.view.id()
     }
@@ -168,6 +260,10 @@ impl Action for State {
     }
     fn request_redraw(&mut self) {
         self.app.view.request_redraw();
+    }
+    fn update(&mut self) {
+        self.zoom_uniform.update_proj(&self.zoom);
+        self.app.queue.write_buffer(&self.zoom_buffer, 0, bytemuck::cast_slice(&[self.zoom_uniform]));
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -201,6 +297,7 @@ impl Action for State {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_bind_group(0, &self.zoom_bind_group, &[]);
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }

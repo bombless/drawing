@@ -1,5 +1,5 @@
 [package]
-name = "tutorial4-buffer"
+name = "drawing"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,4 +12,5 @@ wgpu = "0.17.1"
 utils = { path = "./utils" }
 winit = "0.27.5"
 app-surface = "0.3.1"
+glam = "0.24.2"
 

@@ -574,6 +574,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
+name = "drawing"
+version = "0.1.0"
+dependencies = [
+ "app-surface",
+ "bytemuck",
+ "glam",
+ "utils",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
 name = "dwrote"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1875,17 +1887,6 @@ dependencies = [
  "indexmap 2.0.2",
  "toml_datetime",
  "winnow",
-]
-
-[[package]]
-name = "tutorial4-buffer"
-version = "0.1.0"
-dependencies = [
- "app-surface",
- "bytemuck",
- "utils",
- "wgpu",
- "winit",
 ]
 
 [[package]]

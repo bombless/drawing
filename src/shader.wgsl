@@ -1,5 +1,11 @@
 // 顶点着色器
 
+struct ZoomUniform {
+    proj: mat4x4f,
+};
+@group(0) @binding(0) // 1.
+var<uniform> zoom: ZoomUniform;
+
 struct VertexInput {
     @location(0) position: vec3f,
     @location(1) color: vec3f,
@@ -16,7 +22,7 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     out.color = model.color;
-    out.clip_position = vec4f(model.position, 1.0);
+    out.clip_position = zoom.proj * vec4f(model.position, 1.0);
     return out;
 }
 
