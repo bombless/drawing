@@ -20,7 +20,7 @@ impl State {
         self.brush.queue(&app.device, &app.queue, vec![&self.section]).unwrap();
     }
 
-    pub fn draw<'a, 'b, 'c>(&'a self, rpass: &'b mut wgpu::RenderPass<'c>) where 'a: 'b, 'a: 'c {
+    pub fn draw<'a, 'b>(&'a self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
         self.brush.draw(rpass);
     }
 

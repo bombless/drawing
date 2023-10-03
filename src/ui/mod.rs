@@ -1,5 +1,4 @@
 use app_surface::AppSurface;
-use wgpu::Queue;
 
 mod color;
 mod ui;
@@ -18,7 +17,7 @@ impl State {
         app.queue.write_buffer(self.ui.color().buffer(), 0, self.ui.color().data());
         self.ui.text_mut().process_queued(app);
     }
-    pub fn draw<'a, 'b, 'c>(&'a mut self, rpass: &'b mut wgpu::RenderPass<'c>) where 'a: 'b, 'a: 'c {
+    pub fn draw<'a, 'b>(&'a mut self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
         rpass.set_pipeline(&self.render_pipeline);
         rpass.set_bind_group(0, &self.ui.color().bind_group(), &[]);
 
