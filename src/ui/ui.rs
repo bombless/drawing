@@ -119,6 +119,14 @@ impl State {
         }
         self.points.push(Vec::new());
     }
+    pub fn delete_path(&mut self) {
+        if self.points.len() == 1 {
+            std::mem::take(&mut self.points[0]);
+        } else {
+            self.points.pop();
+        }
+        println!("{:?}", self.points);
+    }
     pub fn update_cursor(&mut self, x: f32, y: f32)  {
         let mut cursor_vertices = vec![x, y];
 

@@ -27,6 +27,9 @@ impl State {
     pub fn new_path(&mut self) {
         self.ui.new_path();
     }
+    pub fn delete_path(&mut self) {
+        self.ui.delete_path();
+    }
     pub fn push_point(&mut self) {
         self.ui.push_point();
     }
