@@ -1,4 +1,5 @@
 use app_surface::AppSurface;
+use wgpu::SurfaceConfiguration;
 
 mod color;
 mod ui;
@@ -15,7 +16,15 @@ impl State {
     }
     pub fn update(&mut self, app: &AppSurface) {
         app.queue.write_buffer(self.ui.color().buffer(), 0, self.ui.color().data());
+        self.ui.write_vertices_buffer(&app);
+        self.ui.check_cursor_buffer(&app.device);
+        app.queue.write_buffer(self.ui.cursor_buffer(), 0, self.ui.cursor_vertices());
+        self.ui.check_cursor_index_buffer(&app.device);
+        app.queue.write_buffer(self.ui.cursor_index_buffer(), 0, self.ui.cursor_indices());
         self.ui.text_mut().process_queued(app);
+    }
+    pub fn update_cursor(&mut self, config: &SurfaceConfiguration, x: f32, y: f32) {
+        self.ui.update_cursor([x / config.width as f32 * 2.0 - 1.0, 1.0 - y / config.height as f32* 2.0]);
     }
     pub fn draw<'a, 'b>(&'a mut self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
         rpass.set_pipeline(&self.render_pipeline);

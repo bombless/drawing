@@ -50,6 +50,9 @@ impl Action for State {
         if let WindowEvent::ReceivedCharacter('z') = event {
             println!("z");
         }
+        if let WindowEvent::CursorMoved { position: p, ..} = event {
+            self.ui.update_cursor(&self.app.config, p.x as _, p.y as _);
+        }
         false
     }
 

@@ -1,5 +1,7 @@
 use app_surface::AppSurface;
+use wgpu::Device;
 use wgpu::util::DeviceExt;
+
 use super::color;
 use super::text;
 
@@ -39,19 +41,58 @@ pub struct State {
 
 impl State {
     pub fn draw<'a, 'b>(&'a self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
-        rpass.set_vertex_buffer(0, self.vertex_buffer());
-        rpass.set_index_buffer(self.index_buffer(), wgpu::IndexFormat::Uint16);
+        rpass.set_vertex_buffer(0, self.cursor_buffer.slice(..));
+        rpass.set_index_buffer(self.cursor_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         rpass.draw_indexed(0..self.num_indices(), 0, 0..1);
         self.text.draw(rpass);
     }
-    pub fn vertex_buffer(&self) -> wgpu::BufferSlice {
-        self.cursor_buffer.slice(..)
+    pub fn cursor_vertices(&self) -> &[u8] {
+        bytemuck::cast_slice(&self.cursor_vertices)
     }
-    pub fn index_buffer(&self) -> wgpu::BufferSlice {
-        self.cursor_index_buffer.slice(..)
+    pub fn cursor_indices(&self) -> &[u8] {
+        bytemuck::cast_slice(&self.cursor_indices)
+    }
+
+    pub fn cursor_buffer(&self) -> &wgpu::Buffer {
+        &self.cursor_buffer
+    }
+
+    pub fn cursor_index_buffer(&self) -> &wgpu::Buffer {
+        &self.cursor_index_buffer
+    }
+
+    pub fn check_cursor_buffer(&mut self, device: &Device) {
+        if self.cursor_buffer.size() == self.cursor_vertices().len() as _ {
+            return
+        }
+
+        let cursor_buffer = device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Vertex Buffer"),
+                contents: self.cursor_vertices(),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            });
+        self.cursor_buffer = cursor_buffer;
+    }
+    pub fn check_cursor_index_buffer(&mut self, device: &Device) {
+        if self.cursor_index_buffer.size() == self.cursor_indices().len() as _ {
+            return
+        }
+
+        let cursor_index_buffer = device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Index Buffer"),
+                contents: self.cursor_indices(),
+                usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+            });
+        self.cursor_index_buffer = cursor_index_buffer;
+    }
+    pub fn write_vertices_buffer(&mut self, app: &AppSurface) {
+        self.check_cursor_buffer(&app.device);
+        let cursor_vertices = self.cursor_vertices();
     }
     pub fn num_indices(&self) -> u32 {
-        self.count_segments as u32 * 3
+        if self.cursor_indices.is_empty() { 0 } else { self.count_segments as u32 * 3 }
     }
     pub fn color(&self) -> &color::State {
         &self.color
@@ -62,21 +103,13 @@ impl State {
     pub fn text_mut(&mut self) -> &mut text::State {
         &mut self.text
     }
-    pub fn new(app: &AppSurface) -> Self {
-
-        let text = text::State::new(&app);
-
-        let device = &app.device;
-
-        let cursor = [0.0f32, 0.0];
-
-        let radius = 0.1f32;
-
-        let count_segments = 900;
-
+    pub fn update_cursor(&mut self, cursor: [f32; 2])  {
         let mut cursor_vertices = Vec::from(cursor);
 
         let mut cursor_indices = vec![0];
+
+        let count_segments = self.count_segments;
+        let radius = self.radius;
 
         for i in 0 .. count_segments {
             let p1 = i as f32 / count_segments as f32 * 2.0 * std::f32::consts::PI;
@@ -94,16 +127,38 @@ impl State {
             cursor_vertices.push(offset_y2 + cursor[1]);
         }
 
+        if cursor_indices.len() % 2 == 1 {
+            cursor_indices.push(0);
+        }
+
+        self.cursor = cursor;
+        self.cursor_vertices = cursor_vertices;
+        self.cursor_indices = cursor_indices;
+    }
+    pub fn new(app: &AppSurface) -> Self {
+
+        let text = text::State::new(&app);
+
+        let device = &app.device;
+
+        let cursor = [0.0f32, 0.0];
+
+        let radius = 0.1f32;
+
+        let count_segments = 900;
+
+
+
         let cursor_buffer = device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&cursor_vertices),
+                contents: &[],
                 usage: wgpu::BufferUsages::VERTEX,
             });
         let cursor_index_buffer = device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(&cursor_indices),
+                contents: &[],
                 usage: wgpu::BufferUsages::INDEX,
             });
 
@@ -111,8 +166,8 @@ impl State {
 
         Self {
             cursor,
-            cursor_vertices,
-            cursor_indices,
+            cursor_vertices: Vec::new(),
+            cursor_indices: Vec::new(),
             radius,
             count_segments,
             cursor_buffer, cursor_index_buffer, text, color,
