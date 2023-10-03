@@ -8,50 +8,25 @@ use winit::event::WindowEvent;
 mod zoom;
 mod base_shape;
 mod text;
+mod ui;
 
 
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-    position: [f32; 3],
-    color: [f32; 3],
-}
-
-impl Vertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-            ],
-        }
-    }
-}
 
 
 struct State {
     app: AppSurface,
-    render_pipeline: wgpu::RenderPipeline,
+    render_basic_shape_pipeline: wgpu::RenderPipeline,
+    render_ui_pipeline: wgpu::RenderPipeline,
     basic_shape: base_shape::State,
     zoom: zoom::State,
     text: text::State<'static>,
+    ui: ui::State,
 }
 
 impl Action for State {
     fn new(app: AppSurface) -> Self {
 
-        let shader = app
+        let shader_basic_shape = app
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("Shader"),
@@ -63,7 +38,7 @@ impl Action for State {
         let zoom = zoom::State::new(&app.device);
         let basic_shape = base_shape::State::new(&app.device);
 
-        let render_pipeline_layout =
+        let render_basic_shape_pipeline_layout =
             app.device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
@@ -73,18 +48,83 @@ impl Action for State {
                     push_constant_ranges: &[],
                 });
 
-        let render_pipeline = app
+        let render_basic_shape_pipeline = app
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Render Pipeline"),
-                layout: Some(&render_pipeline_layout),
+                layout: Some(&render_basic_shape_pipeline_layout),
                 vertex: wgpu::VertexState {
-                    module: &shader,
+                    module: &shader_basic_shape,
                     entry_point: "vs_main",
-                    buffers: &[Vertex::desc()],
+                    buffers: &[base_shape::Vertex::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
-                    module: &shader,
+                    module: &shader_basic_shape,
+                    entry_point: "fs_main",
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: app.config.format.add_srgb_suffix(),
+                        blend: Some(wgpu::BlendState {
+                            color: wgpu::BlendComponent::REPLACE,
+                            alpha: wgpu::BlendComponent::REPLACE,
+                        }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
+                    // or Features::POLYGON_MODE_POINT
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    // Requires Features::DEPTH_CLIP_CONTROL
+                    unclipped_depth: false,
+                    // Requires Features::CONSERVATIVE_RASTERIZATION
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                // If the pipeline will be used with a multiview render pass, this
+                // indicates how many array layers the attachments will have.
+                multiview: None,
+            });
+
+        let shader_ui = app
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("Shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shader_ui.wgsl").into()),
+            });
+
+        let ui = ui::State::new(&app.device);
+
+        let render_ui_pipeline_layout =
+            app.device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("Render Pipeline Layout"),
+                    bind_group_layouts: &[
+                        ui.color().layout()
+                    ],
+                    push_constant_ranges: &[],
+                });
+
+        let render_ui_pipeline = app
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Render UI Pipeline"),
+                layout: Some(&render_ui_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader_ui,
+                    entry_point: "vs_main",
+                    buffers: &[ui::Vertex::desc()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader_ui,
                     entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: app.config.format.add_srgb_suffix(),
@@ -122,10 +162,12 @@ impl Action for State {
 
         Self {
             app,
-            render_pipeline,
+            render_basic_shape_pipeline,
+            render_ui_pipeline,
             zoom,
             basic_shape,
             text,
+            ui,
         }
     }
     fn get_adapter_info(&self) -> wgpu::AdapterInfo {
@@ -145,16 +187,18 @@ impl Action for State {
     fn request_redraw(&mut self) {
         self.app.view.request_redraw();
     }
-    fn update(&mut self) {
-        self.zoom.update_proj();
-        self.app.queue.write_buffer(self.zoom.buffer(), 0, self.zoom.data());
-    }
-
     fn input(&mut self, event: &WindowEvent) -> bool {
         if let WindowEvent::ReceivedCharacter('z') = event {
             println!("z");
         }
         false
+    }
+
+    fn update(&mut self) {
+        self.zoom.update_proj();
+        self.app.queue.write_buffer(self.zoom.buffer(), 0, self.zoom.data());
+        self.text.process_queued(&self.app);
+        self.app.queue.write_buffer(self.ui.color().buffer(), 0, self.ui.color().data());
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -187,13 +231,17 @@ impl Action for State {
                 depth_stencil_attachment: None,
             });
 
-            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_pipeline(&self.render_basic_shape_pipeline);
             render_pass.set_bind_group(0, &self.zoom.bind_group(), &[]);
 
             self.basic_shape.draw(&mut render_pass);
 
-            self.text.process_queued(&self.app);
             self.text.draw(&mut render_pass);
+
+            render_pass.set_pipeline(&self.render_ui_pipeline);
+            render_pass.set_bind_group(0, &self.ui.color().bind_group(), &[]);
+
+            self.ui.draw(&mut render_pass);
         }
 
         self.app.queue.submit(iter::once(encoder.finish()));
