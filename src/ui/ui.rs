@@ -26,32 +26,16 @@ impl Vertex {
 }
 
 pub struct State {
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    num_indices: u32,
+    cursor: [f32; 2],
+    cursor_vertices: Vec<f32>,
+    cursor_indices: Vec<u16>,
+    radius: f32,
+    count_segments: usize,
+    cursor_buffer: wgpu::Buffer,
+    cursor_index_buffer: wgpu::Buffer,
     color: color::State,
     text: text::State,
 }
-
-const VERTICES: &[Vertex] = &[
-    Vertex {
-        position: [-0.0868241, 0.49240386],
-    }, // A
-    Vertex {
-        position: [-0.49513406, 0.06958647],
-    }, // B
-    Vertex {
-        position: [-0.21918549, -0.44939706],
-    }, // C
-    Vertex {
-        position: [0.35966998, -0.3473291],
-    }, // D
-    Vertex {
-        position: [0.44147372, 0.2347359],
-    }, // E
-];
-
-const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4, /* padding */ 0];
 
 impl State {
     pub fn draw<'a, 'b>(&'a self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
@@ -61,13 +45,13 @@ impl State {
         self.text.draw(rpass);
     }
     pub fn vertex_buffer(&self) -> wgpu::BufferSlice {
-        self.vertex_buffer.slice(..)
+        self.cursor_buffer.slice(..)
     }
     pub fn index_buffer(&self) -> wgpu::BufferSlice {
-        self.index_buffer.slice(..)
+        self.cursor_index_buffer.slice(..)
     }
     pub fn num_indices(&self) -> u32 {
-        self.num_indices
+        self.count_segments as u32 * 3
     }
     pub fn color(&self) -> &color::State {
         &self.color
@@ -84,22 +68,54 @@ impl State {
 
         let device = &app.device;
 
-        let vertex_buffer = device
+        let cursor = [0.0f32, 0.0];
+
+        let radius = 0.1f32;
+
+        let count_segments = 900;
+
+        let mut cursor_vertices = Vec::from(cursor);
+
+        let mut cursor_indices = vec![0];
+
+        for i in 0 .. count_segments {
+            let p1 = i as f32 / count_segments as f32 * 2.0 * std::f32::consts::PI;
+            cursor_indices.push(0);
+            cursor_indices.push(i as u16 * 2);
+            cursor_indices.push(i as u16 * 2 + 1);
+            let offset_x1 = p1.sin() * radius;
+            let offset_y1 = p1.cos() * radius;
+            cursor_vertices.push(offset_x1 + cursor[0]);
+            cursor_vertices.push(offset_y1 + cursor[1]);
+            let p2 = i as f32 + 1.0 / count_segments as f32 * 2.0 * std::f32::consts::PI;
+            let offset_x2 = p2.sin() * radius;
+            let offset_y2 = p2.cos() * radius;
+            cursor_vertices.push(offset_x2 + cursor[0]);
+            cursor_vertices.push(offset_y2 + cursor[1]);
+        }
+
+        let cursor_buffer = device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(VERTICES),
+                contents: bytemuck::cast_slice(&cursor_vertices),
                 usage: wgpu::BufferUsages::VERTEX,
             });
-        let index_buffer = device
+        let cursor_index_buffer = device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(INDICES),
+                contents: bytemuck::cast_slice(&cursor_indices),
                 usage: wgpu::BufferUsages::INDEX,
             });
-        let num_indices = INDICES.len() as u32;
+
+        let color = color::State::new(device);
 
         Self {
-            vertex_buffer, index_buffer, num_indices, text, color: color::State::new(device),
+            cursor,
+            cursor_vertices,
+            cursor_indices,
+            radius,
+            count_segments,
+            cursor_buffer, cursor_index_buffer, text, color,
         }
     }
 }

@@ -67,7 +67,7 @@ impl State {
                     })],
                 }),
                 primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    topology: wgpu::PrimitiveTopology::default(),
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
                     cull_mode: Some(wgpu::Face::Back),

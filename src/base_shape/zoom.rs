@@ -35,7 +35,7 @@ impl Zoom {
         use std::time::{SystemTime, UNIX_EPOCH};
         let now = SystemTime::now();
         let timestamp = now.duration_since(UNIX_EPOCH).unwrap().as_millis() as f64 / 1000.0;
-        let mat4 = glam::Mat4::from_translation(glam::vec3(timestamp.sin() as f32 * 0.3, 0.0, 0.0));
+        let mat4 = glam::Mat4::from_translation(glam::vec3(timestamp.sin() as f32 * 0.3, -0.6, 0.0));
         mat4
     }
 }
