@@ -15,10 +15,10 @@ impl State {
         self.ui.text().resize_view(app);
     }
     pub fn update(&mut self, app: &AppSurface) {
-        self.ui.check_cursor_buffer(&app.device);
-        app.queue.write_buffer(self.ui.cursor_buffer(), 0, self.ui.cursor_vertices());
-        self.ui.check_cursor_index_buffer(&app.device);
-        app.queue.write_buffer(self.ui.cursor_index_buffer(), 0, self.ui.cursor_indices());
+        self.ui.check_buffer(&app.device);
+        app.queue.write_buffer(self.ui.buffer(), 0, self.ui.vertices());
+        self.ui.check_index_buffer(&app.device);
+        app.queue.write_buffer(self.ui.index_buffer(), 0, self.ui.indices());
         self.ui.text_mut().process_queued(app);
     }
     pub fn update_cursor(&mut self, config: &SurfaceConfiguration, x: f32, y: f32) {
@@ -85,7 +85,7 @@ impl State {
                     topology: wgpu::PrimitiveTopology::default(),
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
+                    cull_mode: None,
                     // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
                     // or Features::POLYGON_MODE_POINT
                     polygon_mode: wgpu::PolygonMode::Fill,

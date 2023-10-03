@@ -53,52 +53,60 @@ impl State {
         rpass.set_bind_group(0, bind_group, &[]);
         rpass.set_vertex_buffer(0, self.buffer.slice(..));
         rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        rpass.draw_indexed(0..self.num_indices(), 0, 0..1);
+        if self.buffer.size() > 0 {
+            rpass.draw_indexed(0..self.num_indices_cursor(), 0, 0..1);
+            let from = self.num_indices_cursor();
+            let to = self.num_indices_paths() + self.num_indices_cursor();
+            rpass.draw_indexed(from ..to, 0, 0..1);
+        }
         self.text.draw(rpass);
     }
-    pub fn cursor_vertices(&self) -> &[u8] {
+    pub fn vertices(&self) -> &[u8] {
         bytemuck::cast_slice(&self.vertices)
     }
-    pub fn cursor_indices(&self) -> &[u8] {
+    pub fn indices(&self) -> &[u8] {
         bytemuck::cast_slice(&self.indices)
     }
 
-    pub fn cursor_buffer(&self) -> &wgpu::Buffer {
+    pub fn buffer(&self) -> &wgpu::Buffer {
         &self.buffer
     }
 
-    pub fn cursor_index_buffer(&self) -> &wgpu::Buffer {
+    pub fn index_buffer(&self) -> &wgpu::Buffer {
         &self.index_buffer
     }
 
-    pub fn check_cursor_buffer(&mut self, device: &Device) {
-        if self.buffer.size() == self.cursor_vertices().len() as _ {
+    pub fn check_buffer(&mut self, device: &Device) {
+        if self.buffer.size() == self.vertices().len() as _ {
             return
         }
 
         let cursor_buffer = device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: self.cursor_vertices(),
+                contents: self.vertices(),
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             });
         self.buffer = cursor_buffer;
     }
-    pub fn check_cursor_index_buffer(&mut self, device: &Device) {
-        if self.index_buffer.size() == self.cursor_indices().len() as _ {
+    pub fn check_index_buffer(&mut self, device: &Device) {
+        if self.index_buffer.size() == self.indices().len() as _ {
             return
         }
 
-        let cursor_index_buffer = device
+        let index_buffer = device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: self.cursor_indices(),
+                contents: self.indices(),
                 usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
             });
-        self.index_buffer = cursor_index_buffer;
+        self.index_buffer = index_buffer;
     }
-    pub fn num_indices(&self) -> u32 {
-        if self.indices.is_empty() { 0 } else { self.count_segments as u32 * 3 }
+    pub fn num_indices_cursor(&self) -> u32 {
+        self.count_segments as u32 * 3
+    }
+    pub fn num_indices_paths(&self) -> u32 {
+        self.indices.len() as u32 - self.num_indices_cursor()
     }
     pub fn color(&self) -> &color::State {
         &self.color
@@ -111,7 +119,6 @@ impl State {
     }
     pub fn push_point(&mut self) {
         self.points.last_mut().unwrap().push(self.cursor);
-        println!("{:?}", self.points);
     }
     pub fn new_path(&mut self) {
         if self.points.last().unwrap().is_empty() {
@@ -120,44 +127,58 @@ impl State {
         self.points.push(Vec::new());
     }
     pub fn delete_path(&mut self) {
-        if self.points.len() == 1 {
-            std::mem::take(&mut self.points[0]);
-        } else {
-            self.points.pop();
-        }
-        println!("{:?}", self.points);
+        std::mem::take(self.points.last_mut().unwrap());
     }
     pub fn update_cursor(&mut self, x: f32, y: f32)  {
-        let mut cursor_vertices = vec![x, y];
+        let mut vertices = vec![];
 
-        let mut cursor_indices = vec![0];
+        let mut indices = vec![];
 
-        let count_segments = self.count_segments;
+        let count_segments = self.count_segments as _;
         let radius = self.radius;
 
-        for i in 0 .. count_segments {
-            let p1 = i as f32 / count_segments as f32 * 2.0 * std::f32::consts::PI;
-            cursor_indices.push(0);
-            cursor_indices.push(i as u16 * 2);
-            cursor_indices.push(i as u16 * 2 + 1);
-            let offset_x1 = p1.sin() * radius;
-            let offset_y1 = p1.cos() * radius;
-            cursor_vertices.push(offset_x1 + x);
-            cursor_vertices.push(offset_y1 + y);
-            let p2 = i as f32 + 1.0 / count_segments as f32 * 2.0 * std::f32::consts::PI;
-            let offset_x2 = p2.sin() * radius;
-            let offset_y2 = p2.cos() * radius;
-            cursor_vertices.push(offset_x2 + x);
-            cursor_vertices.push(offset_y2 + y);
+        fn fill_buffer(vertices: &mut Vec<f32>, indices: &mut Vec<u16>, origin: u16,
+                       factor: f32, radius: f32, x: f32, y: f32, count_segments: u32)
+        {
+            vertices.push(x);
+            vertices.push(y);
+            for i in 0 .. count_segments {
+                let p1 = i as f32 * factor;
+                indices.push(origin);
+                indices.push(origin + i as u16 * 2 + 1);
+                indices.push(origin + i as u16 * 2 + 2);
+                let offset_x1 = p1.sin() * radius;
+                let offset_y1 = p1.cos() * radius;
+                vertices.push(offset_x1 + x);
+                vertices.push(offset_y1 + y);
+                let p2 = factor * (i + 1) as f32;
+                let offset_x2 = p2.sin() * radius;
+                let offset_y2 = p2.cos() * radius;
+                vertices.push(offset_x2 + x);
+                vertices.push(offset_y2 + y);
+            }
         }
 
-        if cursor_indices.len() % 2 == 1 {
-            cursor_indices.push(0);
+        let mut count = 0;
+        fill_buffer(&mut vertices, &mut indices, count,
+                    2.0 * std::f32::consts::PI / count_segments as f32, radius, x, y, count_segments);
+
+
+        for segment in &self.points {
+            for &(x, y) in segment {
+                count += count_segments as u16 * 2 + 1;
+                fill_buffer(&mut vertices, &mut indices, count,
+                            2.0 * std::f32::consts::PI / count_segments as f32, radius, x, y, count_segments);
+            }
+        }
+
+        if indices.len() % 2 == 1 {
+            indices.push(0);
         }
 
         self.cursor = (x, y);
-        self.vertices = cursor_vertices;
-        self.indices = cursor_indices;
+        self.vertices = vertices;
+        self.indices = indices;
     }
     pub fn new(app: &AppSurface) -> Self {
 
@@ -169,7 +190,7 @@ impl State {
 
         let radius = 0.1f32;
 
-        let count_segments = 900;
+        let count_segments = 30;
 
 
         let cursor_buffer = device
