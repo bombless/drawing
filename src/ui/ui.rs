@@ -28,8 +28,8 @@ impl Vertex {
 }
 
 pub struct State {
-    cursor: [f32; 2],
-    points: Vec<[f32; 2]>,
+    cursor: (f32, f32),
+    points: Vec<Vec<(f32, f32)>>,
     vertices: Vec<f32>,
     indices: Vec<u16>,
     radius: f32,
@@ -97,10 +97,6 @@ impl State {
             });
         self.index_buffer = cursor_index_buffer;
     }
-    pub fn write_vertices_buffer(&mut self, app: &AppSurface) {
-        self.check_cursor_buffer(&app.device);
-        let cursor_vertices = self.cursor_vertices();
-    }
     pub fn num_indices(&self) -> u32 {
         if self.indices.is_empty() { 0 } else { self.count_segments as u32 * 3 }
     }
@@ -114,11 +110,17 @@ impl State {
         &mut self.text
     }
     pub fn push_point(&mut self) {
-        self.points.push(self.cursor);
+        self.points.last_mut().unwrap().push(self.cursor);
         println!("{:?}", self.points);
     }
-    pub fn update_cursor(&mut self, cursor: [f32; 2])  {
-        let mut cursor_vertices = Vec::from(cursor);
+    pub fn new_path(&mut self) {
+        if self.points.last().unwrap().is_empty() {
+            return;
+        }
+        self.points.push(Vec::new());
+    }
+    pub fn update_cursor(&mut self, x: f32, y: f32)  {
+        let mut cursor_vertices = vec![x, y];
 
         let mut cursor_indices = vec![0];
 
@@ -132,20 +134,20 @@ impl State {
             cursor_indices.push(i as u16 * 2 + 1);
             let offset_x1 = p1.sin() * radius;
             let offset_y1 = p1.cos() * radius;
-            cursor_vertices.push(offset_x1 + cursor[0]);
-            cursor_vertices.push(offset_y1 + cursor[1]);
+            cursor_vertices.push(offset_x1 + x);
+            cursor_vertices.push(offset_y1 + y);
             let p2 = i as f32 + 1.0 / count_segments as f32 * 2.0 * std::f32::consts::PI;
             let offset_x2 = p2.sin() * radius;
             let offset_y2 = p2.cos() * radius;
-            cursor_vertices.push(offset_x2 + cursor[0]);
-            cursor_vertices.push(offset_y2 + cursor[1]);
+            cursor_vertices.push(offset_x2 + x);
+            cursor_vertices.push(offset_y2 + y);
         }
 
         if cursor_indices.len() % 2 == 1 {
             cursor_indices.push(0);
         }
 
-        self.cursor = cursor;
+        self.cursor = (x, y);
         self.vertices = cursor_vertices;
         self.indices = cursor_indices;
     }
@@ -155,12 +157,11 @@ impl State {
 
         let device = &app.device;
 
-        let cursor = [0.0f32, 0.0];
+        let cursor = (0.0, 0.0);
 
         let radius = 0.1f32;
 
         let count_segments = 900;
-
 
 
         let cursor_buffer = device
@@ -180,7 +181,7 @@ impl State {
 
         Self {
             cursor,
-            points: Vec::new(),
+            points: vec![vec![]],
             vertices: Vec::new(),
             indices: Vec::new(),
             radius,

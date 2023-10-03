@@ -15,7 +15,6 @@ impl State {
         self.ui.text().resize_view(app);
     }
     pub fn update(&mut self, app: &AppSurface) {
-        self.ui.write_vertices_buffer(&app);
         self.ui.check_cursor_buffer(&app.device);
         app.queue.write_buffer(self.ui.cursor_buffer(), 0, self.ui.cursor_vertices());
         self.ui.check_cursor_index_buffer(&app.device);
@@ -23,7 +22,10 @@ impl State {
         self.ui.text_mut().process_queued(app);
     }
     pub fn update_cursor(&mut self, config: &SurfaceConfiguration, x: f32, y: f32) {
-        self.ui.update_cursor([x / config.width as f32 * 2.0 - 1.0, 1.0 - y / config.height as f32* 2.0]);
+        self.ui.update_cursor(x / config.width as f32 * 2.0 - 1.0, 1.0 - y / config.height as f32* 2.0);
+    }
+    pub fn new_path(&mut self) {
+        self.ui.new_path();
     }
     pub fn push_point(&mut self) {
         self.ui.push_point();

@@ -48,7 +48,7 @@ impl Action for State {
     }
     fn input(&mut self, event: &WindowEvent) -> bool {
         if let WindowEvent::ReceivedCharacter('z') = event {
-            println!("z");
+            self.ui.new_path();
         }
         if let WindowEvent::CursorMoved { position: p, ..} = event {
             self.ui.update_cursor(&self.app.config, p.x as _, p.y as _);
