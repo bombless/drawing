@@ -25,6 +25,9 @@ impl State {
     pub fn update_cursor(&mut self, config: &SurfaceConfiguration, x: f32, y: f32) {
         self.ui.update_cursor([x / config.width as f32 * 2.0 - 1.0, 1.0 - y / config.height as f32* 2.0]);
     }
+    pub fn push_point(&mut self) {
+        self.ui.push_point();
+    }
     pub fn draw<'a, 'b>(&'a mut self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
         rpass.set_pipeline(&self.render_pipeline);
 

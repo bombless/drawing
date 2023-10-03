@@ -3,7 +3,7 @@ use std::iter;
 use app_surface::{AppSurface, SurfaceFrame};
 use utils::framework::{Action, run};
 use winit::{dpi::PhysicalSize, window::WindowId};
-use winit::event::WindowEvent;
+use winit::event::{ElementState, MouseButton, WindowEvent};
 
 mod base_shape;
 mod ui;
@@ -52,6 +52,9 @@ impl Action for State {
         }
         if let WindowEvent::CursorMoved { position: p, ..} = event {
             self.ui.update_cursor(&self.app.config, p.x as _, p.y as _);
+        }
+        if let WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, ..} = event {
+            self.ui.push_point();
         }
         false
     }

@@ -29,12 +29,13 @@ impl Vertex {
 
 pub struct State {
     cursor: [f32; 2],
-    cursor_vertices: Vec<f32>,
-    cursor_indices: Vec<u16>,
+    points: Vec<[f32; 2]>,
+    vertices: Vec<f32>,
+    indices: Vec<u16>,
     radius: f32,
     count_segments: usize,
-    cursor_buffer: wgpu::Buffer,
-    cursor_index_buffer: wgpu::Buffer,
+    buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
     color: color::State,
     text: text::State,
 }
@@ -50,28 +51,28 @@ impl State {
             self.color().green_bind_group()
         };
         rpass.set_bind_group(0, bind_group, &[]);
-        rpass.set_vertex_buffer(0, self.cursor_buffer.slice(..));
-        rpass.set_index_buffer(self.cursor_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        rpass.set_vertex_buffer(0, self.buffer.slice(..));
+        rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         rpass.draw_indexed(0..self.num_indices(), 0, 0..1);
         self.text.draw(rpass);
     }
     pub fn cursor_vertices(&self) -> &[u8] {
-        bytemuck::cast_slice(&self.cursor_vertices)
+        bytemuck::cast_slice(&self.vertices)
     }
     pub fn cursor_indices(&self) -> &[u8] {
-        bytemuck::cast_slice(&self.cursor_indices)
+        bytemuck::cast_slice(&self.indices)
     }
 
     pub fn cursor_buffer(&self) -> &wgpu::Buffer {
-        &self.cursor_buffer
+        &self.buffer
     }
 
     pub fn cursor_index_buffer(&self) -> &wgpu::Buffer {
-        &self.cursor_index_buffer
+        &self.index_buffer
     }
 
     pub fn check_cursor_buffer(&mut self, device: &Device) {
-        if self.cursor_buffer.size() == self.cursor_vertices().len() as _ {
+        if self.buffer.size() == self.cursor_vertices().len() as _ {
             return
         }
 
@@ -81,10 +82,10 @@ impl State {
                 contents: self.cursor_vertices(),
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             });
-        self.cursor_buffer = cursor_buffer;
+        self.buffer = cursor_buffer;
     }
     pub fn check_cursor_index_buffer(&mut self, device: &Device) {
-        if self.cursor_index_buffer.size() == self.cursor_indices().len() as _ {
+        if self.index_buffer.size() == self.cursor_indices().len() as _ {
             return
         }
 
@@ -94,14 +95,14 @@ impl State {
                 contents: self.cursor_indices(),
                 usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
             });
-        self.cursor_index_buffer = cursor_index_buffer;
+        self.index_buffer = cursor_index_buffer;
     }
     pub fn write_vertices_buffer(&mut self, app: &AppSurface) {
         self.check_cursor_buffer(&app.device);
         let cursor_vertices = self.cursor_vertices();
     }
     pub fn num_indices(&self) -> u32 {
-        if self.cursor_indices.is_empty() { 0 } else { self.count_segments as u32 * 3 }
+        if self.indices.is_empty() { 0 } else { self.count_segments as u32 * 3 }
     }
     pub fn color(&self) -> &color::State {
         &self.color
@@ -111,6 +112,10 @@ impl State {
     }
     pub fn text_mut(&mut self) -> &mut text::State {
         &mut self.text
+    }
+    pub fn push_point(&mut self) {
+        self.points.push(self.cursor);
+        println!("{:?}", self.points);
     }
     pub fn update_cursor(&mut self, cursor: [f32; 2])  {
         let mut cursor_vertices = Vec::from(cursor);
@@ -141,8 +146,8 @@ impl State {
         }
 
         self.cursor = cursor;
-        self.cursor_vertices = cursor_vertices;
-        self.cursor_indices = cursor_indices;
+        self.vertices = cursor_vertices;
+        self.indices = cursor_indices;
     }
     pub fn new(app: &AppSurface) -> Self {
 
@@ -175,11 +180,13 @@ impl State {
 
         Self {
             cursor,
-            cursor_vertices: Vec::new(),
-            cursor_indices: Vec::new(),
+            points: Vec::new(),
+            vertices: Vec::new(),
+            indices: Vec::new(),
             radius,
             count_segments,
-            cursor_buffer, cursor_index_buffer, text, color,
+            buffer: cursor_buffer,
+            index_buffer: cursor_index_buffer, text, color,
         }
     }
 }
