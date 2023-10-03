@@ -33,6 +33,11 @@ const VERTICES: &[Vertex] = &[
 const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4, /* padding */ 0];
 
 impl State {
+    pub fn draw<'a, 'b>(&'a self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
+        rpass.set_vertex_buffer(0, self.vertex_buffer());
+        rpass.set_index_buffer(self.index_buffer(), wgpu::IndexFormat::Uint16);
+        rpass.draw_indexed(0..self.num_indices(), 0, 0..1);
+    }
     pub fn vertex_buffer(&self) -> wgpu::BufferSlice {
         self.vertex_buffer.slice(..)
     }

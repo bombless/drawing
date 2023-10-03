@@ -188,10 +188,10 @@ impl Action for State {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_vertex_buffer(0, self.basic_shape.vertex_buffer());
             render_pass.set_bind_group(0, &self.zoom.bind_group(), &[]);
-            render_pass.set_index_buffer(self.basic_shape.index_buffer(), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.basic_shape.num_indices(), 0, 0..1);
+
+            self.basic_shape.draw(&mut render_pass);
+
             self.text.process_queued(&self.app);
             self.text.draw(&mut render_pass);
         }
