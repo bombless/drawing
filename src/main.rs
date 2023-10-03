@@ -3,6 +3,7 @@ use std::iter;
 use app_surface::{AppSurface, SurfaceFrame};
 use utils::framework::{Action, run};
 use winit::{dpi::PhysicalSize, window::WindowId};
+use winit::event::WindowEvent;
 
 mod zoom;
 mod base_shape;
@@ -147,6 +148,13 @@ impl Action for State {
     fn update(&mut self) {
         self.zoom.update_proj();
         self.app.queue.write_buffer(self.zoom.buffer(), 0, self.zoom.data());
+    }
+
+    fn input(&mut self, event: &WindowEvent) -> bool {
+        if let WindowEvent::ReceivedCharacter('z') = event {
+            println!("z");
+        }
+        false
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
