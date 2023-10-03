@@ -70,10 +70,7 @@ struct State {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
-    zoom: zoom::Zoom,
-    zoom_uniform: zoom::ZoomUniform,
-    zoom_buffer: wgpu::Buffer,
-    zoom_bind_group: wgpu::BindGroup,
+    zoom: zoom::State,
 }
 
 impl Action for State {
@@ -85,51 +82,14 @@ impl Action for State {
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
 
-        let zoom = zoom::Zoom::new();
-
-        let mut zoom_uniform = zoom::ZoomUniform::new();
-        zoom_uniform.update_proj(&zoom);
-
-        let zoom_buffer = app.device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Zoom Buffer"),
-                contents: bytemuck::cast_slice(&[zoom_uniform]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            }
-        );
-        let zoom_bind_group_layout = app.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,     // 1
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,              // 2
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }
-            ],
-            label: Some("zoom_bind_group_layout"),
-        });
-
-        let zoom_bind_group = app.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &zoom_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: zoom_buffer.as_entire_binding(),
-                }
-            ],
-            label: Some("zoom_bind_group"),
-        });
+        let zoom_state = zoom::State::new(&app.device);
 
         let render_pipeline_layout =
             app.device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
                     bind_group_layouts: &[
-                        &zoom_bind_group_layout
+                        zoom_state.layout()
                     ],
                     push_constant_ranges: &[],
                 });
@@ -203,10 +163,7 @@ impl Action for State {
             vertex_buffer,
             index_buffer,
             num_indices,
-            zoom,
-            zoom_uniform,
-            zoom_buffer,
-            zoom_bind_group,
+            zoom: zoom_state,
         }
     }
     fn get_adapter_info(&self) -> wgpu::AdapterInfo {
@@ -226,8 +183,8 @@ impl Action for State {
         self.app.view.request_redraw();
     }
     fn update(&mut self) {
-        self.zoom_uniform.update_proj(&self.zoom);
-        self.app.queue.write_buffer(&self.zoom_buffer, 0, bytemuck::cast_slice(&[self.zoom_uniform]));
+        self.zoom.update_proj();
+        self.app.queue.write_buffer(self.zoom.buffer(), 0, self.zoom.data());
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -261,7 +218,7 @@ impl Action for State {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_bind_group(0, &self.zoom_bind_group, &[]);
+            render_pass.set_bind_group(0, &self.zoom.bind_group(), &[]);
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
