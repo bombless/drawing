@@ -2,11 +2,11 @@ use std::iter;
 
 use app_surface::{AppSurface, SurfaceFrame};
 use utils::framework::{Action, run};
-use wgpu::util::DeviceExt;
 use winit::{dpi::PhysicalSize, window::WindowId};
 
 mod zoom;
 mod base_shape;
+mod text;
 
 
 
@@ -44,16 +44,20 @@ struct State {
     render_pipeline: wgpu::RenderPipeline,
     basic_shape: base_shape::State,
     zoom: zoom::State,
+    text: text::State<'static>,
 }
 
 impl Action for State {
     fn new(app: AppSurface) -> Self {
+
         let shader = app
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("Shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
+
+        let text = text::State::new(&app);
 
         let zoom = zoom::State::new(&app.device);
         let basic_shape = base_shape::State::new(&app.device);
@@ -120,6 +124,7 @@ impl Action for State {
             render_pipeline,
             zoom,
             basic_shape,
+            text,
         }
     }
     fn get_adapter_info(&self) -> wgpu::AdapterInfo {
@@ -134,6 +139,7 @@ impl Action for State {
             return;
         }
         self.app.resize_surface();
+        self.text.resize_view(&self.app);
     }
     fn request_redraw(&mut self) {
         self.app.view.request_redraw();
@@ -145,6 +151,7 @@ impl Action for State {
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let (output, view) = self.app.get_current_frame_view(None);
+
 
         let mut encoder = self
             .app
@@ -177,6 +184,8 @@ impl Action for State {
             render_pass.set_bind_group(0, &self.zoom.bind_group(), &[]);
             render_pass.set_index_buffer(self.basic_shape.index_buffer(), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.basic_shape.num_indices(), 0, 0..1);
+            self.text.process_queued(&self.app);
+            self.text.draw(&mut render_pass);
         }
 
         self.app.queue.submit(iter::once(encoder.finish()));
