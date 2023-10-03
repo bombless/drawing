@@ -1,57 +1,58 @@
 use app_surface::AppSurface;
 use wgpu::Queue;
 
-mod color;
-mod ui;
+mod base_shape;
+mod zoom;
 
 pub struct State {
     render_pipeline: wgpu::RenderPipeline,
-    ui: ui::State,
+    basic_shape: base_shape::State,
+    zoom: zoom::State,
 }
 
 impl State {
-    pub fn update(&mut self, queue: &Queue) {
-        queue.write_buffer(self.ui.color().buffer(), 0, self.ui.color().data());
-    }
     pub fn draw<'a, 'b>(&'a mut self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
         rpass.set_pipeline(&self.render_pipeline);
-        rpass.set_bind_group(0, &self.ui.color().bind_group(), &[]);
+        rpass.set_bind_group(0, &self.zoom.bind_group(), &[]);
 
-        self.ui.draw(rpass);
+        self.basic_shape.draw(rpass);
     }
-    pub fn new(app: &AppSurface) -> Self {
+    pub fn update(&mut self, queue: &Queue) {
+        self.zoom.update_proj();
+        queue.write_buffer(self.zoom.buffer(), 0, self.zoom.data());
+    }
+    pub fn new(app: &AppSurface) -> Self {let zoom = zoom::State::new(&app.device);
+        let basic_shape = base_shape::State::new(&app.device);
 
-        let shader_ui = app
+        let render_basic_shape_pipeline_layout =
+            app.device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("Render Pipeline Layout"),
+                    bind_group_layouts: &[
+                        zoom.layout()
+                    ],
+                    push_constant_ranges: &[],
+                });
+
+        let shader_basic_shape = app
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("Shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
 
-        let ui = ui::State::new(&app.device);
-
-        let render_ui_pipeline_layout =
-            app.device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Render Pipeline Layout"),
-                    bind_group_layouts: &[
-                        ui.color().layout()
-                    ],
-                    push_constant_ranges: &[],
-                });
-
-        let render_ui_pipeline = app
+        let render_basic_shape_pipeline = app
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Render UI Pipeline"),
-                layout: Some(&render_ui_pipeline_layout),
+                label: Some("Render Pipeline"),
+                layout: Some(&render_basic_shape_pipeline_layout),
                 vertex: wgpu::VertexState {
-                    module: &shader_ui,
+                    module: &shader_basic_shape,
                     entry_point: "vs_main",
-                    buffers: &[ui::Vertex::desc()],
+                    buffers: &[base_shape::Vertex::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
-                    module: &shader_ui,
+                    module: &shader_basic_shape,
                     entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: app.config.format.add_srgb_suffix(),
@@ -85,6 +86,6 @@ impl State {
                 // indicates how many array layers the attachments will have.
                 multiview: None,
             });
-        Self { render_pipeline: render_ui_pipeline, ui: ui::State::new(&app.device) }
+        Self { render_pipeline: render_basic_shape_pipeline, basic_shape, zoom: zoom::State::new(&app.device) }
     }
 }
