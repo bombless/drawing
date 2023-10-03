@@ -1,12 +1,12 @@
 use wgpu_text::{glyph_brush::{Section as TextSection, Text}, BrushBuilder, TextBrush};
 use glyph_brush::ab_glyph::FontRef;
 
-pub struct State<'a> {
-    brush: TextBrush<FontRef<'a>>,
-    section: TextSection<'a>,
+pub struct State {
+    brush: TextBrush<FontRef<'static>>,
+    section: TextSection<'static>,
 }
 
-impl<'a> State<'a> {
+impl State {
     pub fn new(app: &app_surface::AppSurface) -> Self {
 
         Self {
@@ -20,7 +20,7 @@ impl<'a> State<'a> {
         self.brush.queue(&app.device, &app.queue, vec![&self.section]).unwrap();
     }
 
-    pub fn draw<'b>(&'a self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
+    pub fn draw<'a, 'b, 'c>(&'a self, rpass: &'b mut wgpu::RenderPass<'c>) where 'a: 'b, 'a: 'c {
         self.brush.draw(rpass);
     }
 

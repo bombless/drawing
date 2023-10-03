@@ -1,5 +1,7 @@
+use app_surface::AppSurface;
 use wgpu::util::DeviceExt;
 use super::color;
+use super::text;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -28,6 +30,7 @@ pub struct State {
     index_buffer: wgpu::Buffer,
     num_indices: u32,
     color: color::State,
+    text: text::State,
 }
 
 const VERTICES: &[Vertex] = &[
@@ -51,10 +54,11 @@ const VERTICES: &[Vertex] = &[
 const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4, /* padding */ 0];
 
 impl State {
-    pub fn draw<'a, 'b>(&'a self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
+    pub fn draw<'a, 'b, 'c>(&'a self, rpass: &'b mut wgpu::RenderPass<'c>) where 'a: 'b, 'a: 'c {
         rpass.set_vertex_buffer(0, self.vertex_buffer());
         rpass.set_index_buffer(self.index_buffer(), wgpu::IndexFormat::Uint16);
         rpass.draw_indexed(0..self.num_indices(), 0, 0..1);
+        self.text.draw(rpass);
     }
     pub fn vertex_buffer(&self) -> wgpu::BufferSlice {
         self.vertex_buffer.slice(..)
@@ -68,8 +72,17 @@ impl State {
     pub fn color(&self) -> &color::State {
         &self.color
     }
-    pub fn new(device: &wgpu::Device) -> Self {
+    pub fn text(&self) -> &text::State {
+        &self.text
+    }
+    pub fn text_mut(&mut self) -> &mut text::State {
+        &mut self.text
+    }
+    pub fn new(app: &AppSurface) -> Self {
 
+        let text = text::State::new(&app);
+
+        let device = &app.device;
 
         let vertex_buffer = device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -86,7 +99,7 @@ impl State {
         let num_indices = INDICES.len() as u32;
 
         Self {
-            vertex_buffer, index_buffer, num_indices, color: color::State::new(device)
+            vertex_buffer, index_buffer, num_indices, text, color: color::State::new(device),
         }
     }
 }

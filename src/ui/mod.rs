@@ -3,6 +3,7 @@ use wgpu::Queue;
 
 mod color;
 mod ui;
+pub(super) mod text;
 
 pub struct State {
     render_pipeline: wgpu::RenderPipeline,
@@ -10,10 +11,14 @@ pub struct State {
 }
 
 impl State {
-    pub fn update(&mut self, queue: &Queue) {
-        queue.write_buffer(self.ui.color().buffer(), 0, self.ui.color().data());
+    pub fn resize_view(&self, app: &AppSurface) {
+        self.ui.text().resize_view(app);
     }
-    pub fn draw<'a, 'b>(&'a mut self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
+    pub fn update(&mut self, app: &AppSurface) {
+        app.queue.write_buffer(self.ui.color().buffer(), 0, self.ui.color().data());
+        self.ui.text_mut().process_queued(app);
+    }
+    pub fn draw<'a, 'b, 'c>(&'a mut self, rpass: &'b mut wgpu::RenderPass<'c>) where 'a: 'b, 'a: 'c {
         rpass.set_pipeline(&self.render_pipeline);
         rpass.set_bind_group(0, &self.ui.color().bind_group(), &[]);
 
@@ -28,7 +33,7 @@ impl State {
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             });
 
-        let ui = ui::State::new(&app.device);
+        let ui = ui::State::new(&app);
 
         let render_ui_pipeline_layout =
             app.device
@@ -85,6 +90,6 @@ impl State {
                 // indicates how many array layers the attachments will have.
                 multiview: None,
             });
-        Self { render_pipeline: render_ui_pipeline, ui: ui::State::new(&app.device) }
+        Self { render_pipeline: render_ui_pipeline, ui: ui::State::new(&app) }
     }
 }

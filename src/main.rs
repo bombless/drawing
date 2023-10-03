@@ -6,7 +6,6 @@ use winit::{dpi::PhysicalSize, window::WindowId};
 use winit::event::WindowEvent;
 
 mod base_shape;
-mod text;
 mod ui;
 
 
@@ -14,7 +13,6 @@ mod ui;
 
 struct State {
     app: AppSurface,
-    text: text::State<'static>,
     ui: ui::State,
     base_shape: base_shape::State,
 }
@@ -22,13 +20,11 @@ struct State {
 impl Action for State {
     fn new(app: AppSurface) -> Self {
 
-        let text = text::State::new(&app);
         let ui = ui::State::new(&app);
         let base_shape = base_shape::State::new(&app);
 
         Self {
             app,
-            text,
             ui,
             base_shape,
         }
@@ -45,7 +41,7 @@ impl Action for State {
             return;
         }
         self.app.resize_surface();
-        self.text.resize_view(&self.app);
+        self.ui.resize_view(&self.app);
     }
     fn request_redraw(&mut self) {
         self.app.view.request_redraw();
@@ -59,8 +55,7 @@ impl Action for State {
 
     fn update(&mut self) {
         self.base_shape.update(&self.app.queue);
-        self.ui.update(&self.app.queue);
-        self.text.process_queued(&self.app);
+        self.ui.update(&self.app);
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -94,8 +89,6 @@ impl Action for State {
             });
 
             self.base_shape.draw(&mut render_pass);
-
-            self.text.draw(&mut render_pass);
 
             self.ui.draw(&mut render_pass);
         }
