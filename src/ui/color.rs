@@ -11,43 +11,35 @@ pub struct Uniform {
 }
 
 impl Uniform {
-    pub fn new() -> Self {
+    fn red() -> Self {
         Self {
             color: [1.0, 0.0, 0.0, 0.0],
         }
     }
+    fn green() -> Self {
+        Self {
+            color: [0.0, 1.0, 0.0, 0.0],
+        }
+    }
 }
 pub struct State {
-    uniform: Uniform,
-    buffer: wgpu::Buffer,
     layout: wgpu::BindGroupLayout,
-    bind_group: wgpu::BindGroup,
+    red_bind_group: wgpu::BindGroup,
+    green_bind_group: wgpu::BindGroup,
 }
 
 impl State {
     pub fn layout(&self) -> &wgpu::BindGroupLayout {
         &self.layout
     }
-    pub fn buffer(&self) -> &wgpu::Buffer {
-        &self.buffer
+    pub fn red_bind_group(&self) -> &wgpu::BindGroup {
+        &self.red_bind_group
     }
-    pub fn data(&self) -> &[u8] {
-        bytemuck::cast_slice(&self.uniform.color)
-    }
-    pub fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.bind_group
+    pub fn green_bind_group(&self) -> &wgpu::BindGroup {
+        &self.green_bind_group
     }
     pub fn new(device: &wgpu::Device) -> Self {
 
-        let uniform = Uniform::new();
-
-        let buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Color Buffer"),
-                contents: bytemuck::cast_slice(&[uniform]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            }
-        );
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
@@ -64,20 +56,47 @@ impl State {
             label: Some("color layout"),
         });
 
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let red_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Color Buffer"),
+                contents: bytemuck::cast_slice(&[Uniform::red()]),
+                usage: wgpu::BufferUsages::UNIFORM,
+            }
+        );
+
+        let red_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: buffer.as_entire_binding(),
+                    resource: red_buffer.as_entire_binding(),
+                }
+            ],
+            label: Some("color bind_group"),
+        });
+
+
+        let green_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Color Buffer"),
+                contents: bytemuck::cast_slice(&[Uniform::green()]),
+                usage: wgpu::BufferUsages::UNIFORM,
+            }
+        );
+
+        let green_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: green_buffer.as_entire_binding(),
                 }
             ],
             label: Some("color bind_group"),
         });
 
         Self {
-            uniform,
-            buffer, layout, bind_group
+            layout, red_bind_group, green_bind_group,
         }
 
     }

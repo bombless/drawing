@@ -15,7 +15,6 @@ impl State {
         self.ui.text().resize_view(app);
     }
     pub fn update(&mut self, app: &AppSurface) {
-        app.queue.write_buffer(self.ui.color().buffer(), 0, self.ui.color().data());
         self.ui.write_vertices_buffer(&app);
         self.ui.check_cursor_buffer(&app.device);
         app.queue.write_buffer(self.ui.cursor_buffer(), 0, self.ui.cursor_vertices());
@@ -28,7 +27,6 @@ impl State {
     }
     pub fn draw<'a, 'b>(&'a mut self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
         rpass.set_pipeline(&self.render_pipeline);
-        rpass.set_bind_group(0, &self.ui.color().bind_group(), &[]);
 
         self.ui.draw(rpass);
     }
