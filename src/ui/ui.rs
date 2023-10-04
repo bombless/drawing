@@ -83,14 +83,6 @@ pub struct State {
 
 impl State {
     pub fn draw<'a, 'b>(&'a self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let now = SystemTime::now();
-        let timestamp = now.duration_since(UNIX_EPOCH).unwrap().as_secs();
-        let bind_group = if timestamp % 2 == 0 {
-            self.color().red_bind_group()
-        } else {
-            self.color().green_bind_group()
-        };
         rpass.set_vertex_buffer(0, self.buffer.slice(..));
         rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
 
