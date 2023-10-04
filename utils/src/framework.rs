@@ -77,13 +77,13 @@ async fn create_action_instance<A: Action + 'static>(
     let height = (if cfg!(target_arch = "wasm32") {
         550.0
     } else {
-        600.0
+        1000.0
     } * scale_factor) as u32;
 
     let width = if let Some(ratio) = wh_ratio {
         (height as f32 * ratio) as u32
     } else {
-        height
+        height * 16 / 9
     };
     if cfg!(not(target_arch = "wasm32")) {
         window.set_inner_size(PhysicalSize::new(width, height));
