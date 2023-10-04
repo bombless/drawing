@@ -212,34 +212,52 @@ impl State {
         fn get_radian(p1: (f32, f32), p2: (f32, f32)) -> f32 {
             ((p2.0 - p1.0) / (p2.1 - p1.1)).atan()
         }
+        
+        fn draw_line(p1: (f32, f32), p2: (f32, f32), vertices: &mut Vec<f32>, indices: &mut Vec<u16>,
+                     radius: f32, origin: u16)
+        {
 
-        for segment in &self.points {
+            let radian = get_radian(p1, p2);
+            let offset_x1 = (radian + std::f32::consts::PI / 2.0).sin() * radius;
+            let offset_x2 = (radian - std::f32::consts::PI / 2.0).sin() * radius;
+            let offset_y1 = (radian + std::f32::consts::PI / 2.0).cos() * radius;
+            let offset_y2 = (radian - std::f32::consts::PI / 2.0).cos() * radius;
+
+            vertices.push(offset_x1 + p1.0);
+            vertices.push(offset_y1 + p1.1);
+            vertices.push(offset_x2 + p1.0);
+            vertices.push(offset_y2 + p1.1);
+            vertices.push(offset_x1 + p2.0);
+            vertices.push(offset_y1 + p2.1);
+            vertices.push(offset_x2 + p2.0);
+            vertices.push(offset_y2 + p2.1);
+
+            indices.push(origin);
+            indices.push(origin + 1);
+            indices.push(origin + 2);
+
+            indices.push(origin + 1);
+            indices.push(origin + 2);
+            indices.push(origin + 3);
+            
+        }
+
+        for (i, segment) in self.points.iter().enumerate() {
+            if segment.is_empty() {
+                break;
+            }
+            let full_shape = i + 1 < self.points.len();
             for i in 1 .. segment.len() {
-                let pre = segment[i - 1];
-                let cur = segment[i];
+                let p1 = segment[i - 1];
+                let p2 = segment[i];
+                draw_line(p1, p2, &mut self.vertices, &mut self.indices, self.radius, count);
 
-                let radian = get_radian(pre, cur);
-                let offset_x1 = (radian + std::f32::consts::PI / 2.0).sin() * self.radius;
-                let offset_x2 = (radian - std::f32::consts::PI / 2.0).sin() * self.radius;
-                let offset_y1 = (radian + std::f32::consts::PI / 2.0).cos() * self.radius;
-                let offset_y2 = (radian - std::f32::consts::PI / 2.0).cos() * self.radius;
-
-                self.vertices.push(offset_x1 + pre.0);
-                self.vertices.push(offset_y1 + pre.1);
-                self.vertices.push(offset_x2 + pre.0);
-                self.vertices.push(offset_y2 + pre.1);
-                self.vertices.push(offset_x1 + cur.0);
-                self.vertices.push(offset_y1 + cur.1);
-                self.vertices.push(offset_x2 + cur.0);
-                self.vertices.push(offset_y2 + cur.1);
-
-                self.indices.push(count);
-                self.indices.push(count + 1);
-                self.indices.push(count + 2);
-
-                self.indices.push(count + 1);
-                self.indices.push(count + 2);
-                self.indices.push(count + 3);
+                count += 4;
+            }
+            if full_shape {
+                let p1 = *segment.last().unwrap();
+                let p2 = segment[0];
+                draw_line(p1, p2, &mut self.vertices, &mut self.indices, self.radius, count);
 
                 count += 4;
             }
