@@ -3,8 +3,14 @@
 struct ColorUniform {
     color: vec3f,
 };
-@group(0) @binding(0) // 1.
+@group(1) @binding(0) // 1.
 var<uniform> color: ColorUniform;
+
+struct TransformUniform {
+    transform: mat4x4f,
+};
+@group(0) @binding(0) // 1.
+var<uniform> transform: TransformUniform;
 
 struct VertexInput {
     @location(0) position: vec2f,
@@ -19,7 +25,7 @@ fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    out.clip_position = vec4f(model.position, 0.0, 1.0);
+    out.clip_position = transform.transform * vec4f(model.position, 0.0, 1.0);
     return out;
 }
 

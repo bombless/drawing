@@ -92,11 +92,11 @@ impl State {
         if index_buffer_len > 0 {
             let count_cursor = self.segments_count as u32 * 3;
 
-            rpass.set_bind_group(0, self.color().red_bind_group(), &[]);
+            rpass.set_bind_group(1, self.color().red_bind_group(), &[]);
 
             rpass.draw_indexed(0..count_cursor, 0, 0..1);
 
-            rpass.set_bind_group(0, self.color().green_bind_group(), &[]);
+            rpass.set_bind_group(1, self.color().green_bind_group(), &[]);
 
             rpass.draw_indexed(count_cursor..indices_len.min(index_buffer_len), 0, 0..1);
         }

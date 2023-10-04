@@ -4,10 +4,12 @@ use wgpu::SurfaceConfiguration;
 mod color;
 mod ui;
 pub(super) mod text;
+mod transform;
 
 pub struct State {
     render_pipeline: wgpu::RenderPipeline,
     ui: ui::State,
+    transform: transform::State,
 }
 
 impl State {
@@ -49,18 +51,19 @@ impl State {
             });
 
         let ui = ui::State::new(&app);
+        let transform = transform::State::new(&app.device);
 
         let render_ui_pipeline_layout =
             app.device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
                     bind_group_layouts: &[
-                        ui.color().layout()
+                        transform.layout(), ui.color().layout()
                     ],
                     push_constant_ranges: &[],
                 });
 
-        let render_ui_pipeline = app
+        let render_pipeline = app
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Render UI Pipeline"),
@@ -105,6 +108,6 @@ impl State {
                 // indicates how many array layers the attachments will have.
                 multiview: None,
             });
-        Self { render_pipeline: render_ui_pipeline, ui: ui::State::new(&app) }
+        Self { render_pipeline, ui, transform }
     }
 }
