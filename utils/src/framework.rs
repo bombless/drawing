@@ -77,7 +77,7 @@ async fn create_action_instance<A: Action + 'static>(
     let height = (if cfg!(target_arch = "wasm32") {
         550.0
     } else {
-        1000.0
+        936.0
     } * scale_factor) as u32;
 
     let width = if let Some(ratio) = wh_ratio {
