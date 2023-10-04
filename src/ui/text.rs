@@ -8,11 +8,12 @@ pub struct State {
 
 impl State {
     pub fn new(app: &app_surface::AppSurface) -> Self {
+        let text = "Press Z to start path, F to fill and start path, D to delete path";
 
         Self {
             brush: BrushBuilder::using_font_bytes(include_bytes!("C:\\Windows\\Fonts\\msyh.ttc")).unwrap()
                 .build(&app.device, app.config.width, app.config.height, app.config.format),
-            section: TextSection::default().add_text(Text::new("Press Z to start path, D to delete path")),
+            section: TextSection::default().add_text(Text::new(text)),
         }
     }
 

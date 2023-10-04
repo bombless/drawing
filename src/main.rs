@@ -48,7 +48,10 @@ impl Action for State {
     }
     fn input(&mut self, event: &WindowEvent) -> bool {
         if let WindowEvent::ReceivedCharacter('z') = event {
-            self.ui.new_path();
+            self.ui.new_path(false);
+        }
+        if let WindowEvent::ReceivedCharacter('f') = event {
+            self.ui.new_path(true);
         }
         if let WindowEvent::ReceivedCharacter('d') = event {
             self.ui.delete_path();

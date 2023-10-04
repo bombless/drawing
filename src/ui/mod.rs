@@ -24,8 +24,8 @@ impl State {
     pub fn update_cursor(&mut self, config: &SurfaceConfiguration, x: f32, y: f32) {
         self.ui.update_cursor(x / config.width as f32 * 2.0 - 1.0, 1.0 - y / config.height as f32* 2.0);
     }
-    pub fn new_path(&mut self) {
-        self.ui.new_path();
+    pub fn new_path(&mut self, fill: bool) {
+        self.ui.new_path(fill);
         self.ui.update_points();
     }
     pub fn delete_path(&mut self) {

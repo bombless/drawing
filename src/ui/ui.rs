@@ -165,10 +165,11 @@ impl State {
         self.points.last_mut().unwrap().push(self.cursor);
         self.update_points();
     }
-    pub fn new_path(&mut self) {
+    pub fn new_path(&mut self, fill: bool) {
         if self.points.last().unwrap().is_empty() {
             return;
         }
+        self.points.last_mut().unwrap().fill = fill;
         self.points.push(Shape {
             shape: Vec::new(),
             fill: false,
@@ -297,6 +298,23 @@ impl State {
                 draw_line(p1, p2, &mut self.vertices, &mut self.indices, self.radius, count);
 
                 count += 4;
+            }
+            if segment.fill {
+                for &(x, y) in segment {
+                    self.vertices.push(x);
+                    self.vertices.push(y);
+                }
+                let limit = segment.len();
+                for i in 0 .. limit {
+                    for j in i + 1 .. limit {
+                        for k in j + 1 .. limit {
+                            self.indices.push(count + i as u16);
+                            self.indices.push(count + j as u16);
+                            self.indices.push(count + k as u16);
+                        }
+                    }
+                }
+                count += segment.len() as u16;
             }
             if full_shape {
                 let p1 = *segment.last().unwrap();
