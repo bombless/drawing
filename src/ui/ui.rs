@@ -141,21 +141,23 @@ impl State {
     {
         vertices.push(x);
         vertices.push(y);
-        for i in 0 .. count_segments {
-            let p1 = i as f32 * factor;
+        let offset_x = 0.0f32.sin() * radius;
+        let offset_y = 0.0f32.cos() * radius;
+        vertices.push(offset_x + x);
+        vertices.push(offset_y + y);
+        for i in 1 .. count_segments {
+            let p = i as f32 * factor;
             indices.push(origin);
-            indices.push(origin + i as u16 * 2 + 1);
-            indices.push(origin + i as u16 * 2 + 2);
-            let offset_x1 = p1.sin() * radius;
-            let offset_y1 = p1.cos() * radius;
-            vertices.push(offset_x1 + x);
-            vertices.push(offset_y1 + y);
-            let p2 = factor * (i + 1) as f32;
-            let offset_x2 = p2.sin() * radius;
-            let offset_y2 = p2.cos() * radius;
-            vertices.push(offset_x2 + x);
-            vertices.push(offset_y2 + y);
+            indices.push(origin + i as u16);
+            indices.push(origin + i as u16 + 1);
+            let offset_x = p.sin() * radius;
+            let offset_y = p.cos() * radius;
+            vertices.push(offset_x + x);
+            vertices.push(offset_y + y);
         }
+        indices.push(origin);
+        indices.push(origin + count_segments as u16);
+        indices.push(origin + 1);
     }
 
     pub fn update_cursor(&mut self, x: f32, y: f32)  {
@@ -177,6 +179,10 @@ impl State {
             self.vertices[..vertices.len()].copy_from_slice(&vertices);
             self.indices[..indices.len()].copy_from_slice(&indices);
         }
+
+        if self.indices.len() % 2 == 1 {
+            self.indices.push(0);
+        }
     }
 
     pub fn update_points(&mut self)  {
@@ -189,12 +195,12 @@ impl State {
 
         let mut count = 0;
 
-        self.vertices.truncate(self.segments_count * 4 + 2);
+        self.vertices.truncate(self.segments_count * 2 + 2);
         self.indices.truncate(self.segments_count * 3);
 
         for segment in &self.points {
             for &(x, y) in segment {
-                count += segments_count as u16 * 2 + 1;
+                count += segments_count as u16 + 1;
                 Self::fill_buffer(&mut self.vertices, &mut self.indices, count,
                                   2.0 * std::f32::consts::PI / segments_count as f32, radius, x, y, segments_count);
             }
@@ -214,7 +220,7 @@ impl State {
 
         let radius = 0.1f32;
 
-        let segments_count = 30;
+        let segments_count = 6;
 
 
         let cursor_buffer = device
