@@ -184,7 +184,7 @@ impl State {
             return;
         }
 
-        let count_segments = self.segments_count as _;
+        let segments_count = self.segments_count as _;
         let radius = self.radius;
 
         let mut count = 0;
@@ -194,9 +194,9 @@ impl State {
 
         for segment in &self.points {
             for &(x, y) in segment {
-                count += count_segments as u16 * 2 + 1;
+                count += segments_count as u16 * 2 + 1;
                 Self::fill_buffer(&mut self.vertices, &mut self.indices, count,
-                                  2.0 * std::f32::consts::PI / count_segments as f32, radius, x, y, count_segments);
+                                  2.0 * std::f32::consts::PI / segments_count as f32, radius, x, y, segments_count);
             }
         }
 
@@ -214,7 +214,7 @@ impl State {
 
         let radius = 0.1f32;
 
-        let count_segments = 30;
+        let segments_count = 30;
 
 
         let cursor_buffer = device
@@ -238,7 +238,7 @@ impl State {
             vertices: Vec::new(),
             indices: Vec::new(),
             radius,
-            segments_count: count_segments,
+            segments_count,
             buffer: cursor_buffer,
             index_buffer: cursor_index_buffer, text, color,
         }
