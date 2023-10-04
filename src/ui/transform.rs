@@ -13,10 +13,8 @@ pub struct Uniform {
 
 impl Uniform {
     pub fn new() -> Self {
-        let mut proj = Mat4::IDENTITY.to_cols_array_2d();
-        proj[0][0] = 9.0 / 16.0;
         Self {
-            proj,
+            proj: Mat4::IDENTITY.to_cols_array_2d(),
         }
     }
 }
@@ -29,6 +27,14 @@ pub struct State {
 }
 
 impl State {
+    pub fn update_ratio(&mut self, ratio: f32) {
+        self.uniform.proj = [
+            [1.0 / ratio, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+    }
     pub fn layout(&self) -> &wgpu::BindGroupLayout {
         &self.layout
     }

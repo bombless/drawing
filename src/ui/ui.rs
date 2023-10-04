@@ -69,11 +69,12 @@ impl Index<usize> for Shape {
 }
 
 pub struct State {
-    cursor: (f32, f32),
+    cursor: Option<(f32, f32)>,
     points: Vec<Shape>,
     vertices: Vec<f32>,
     indices: Vec<u16>,
     radius: f32,
+    ratio: f32,
     segments_count: usize,
     buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
@@ -92,11 +93,14 @@ impl State {
         if index_buffer_len > 0 {
             let count_cursor = self.segments_count as u32 * 3;
 
-            rpass.set_bind_group(1, self.color().red_bind_group(), &[]);
+            if self.cursor.is_some() {
+                rpass.set_bind_group(1, self.color().red_bind_group(), &[]);
 
-            rpass.draw_indexed(0..count_cursor, 0, 0..1);
+                rpass.draw_indexed(0..count_cursor, 0, 0..1);
+            }
 
             rpass.set_bind_group(1, self.color().green_bind_group(), &[]);
+
 
             rpass.draw_indexed(count_cursor..indices_len.min(index_buffer_len), 0, 0..1);
         }
@@ -154,8 +158,10 @@ impl State {
         &mut self.text
     }
     pub fn push_point(&mut self) {
-        self.points.last_mut().unwrap().push(self.cursor);
-        self.update_points();
+        if let Some(cursor) = self.cursor {
+            self.points.last_mut().unwrap().push(cursor);
+            self.update_points();
+        }
     }
     pub fn new_path(&mut self, fill: bool) {
         if self.points.last().unwrap().is_empty() {
@@ -201,7 +207,11 @@ impl State {
     }
 
     pub fn update_cursor(&mut self, x: f32, y: f32)  {
-        self.cursor = (x, y);
+        if x.abs() > 2.0 / self.ratio {
+            self.cursor = None;
+            return;
+        }
+        self.cursor = Some((x, y));
 
         let count_segments = self.segments_count as _;
         let radius = self.radius;
@@ -327,9 +337,11 @@ impl State {
 
         let device = &app.device;
 
-        let cursor = (0.0, 0.0);
+        let cursor = Some((0.0, 0.0));
 
         let radius = 0.01f32;
+
+        let ratio = 16.0 / 9.0;
 
         let segments_count = 6;
 
@@ -351,6 +363,7 @@ impl State {
 
         Self {
             cursor,
+            ratio,
             points: vec![Shape { shape: vec![], fill: false }],
             vertices: Vec::new(),
             indices: Vec::new(),
