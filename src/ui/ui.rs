@@ -1,3 +1,4 @@
+use std::ops::Index;
 use app_surface::AppSurface;
 use wgpu::Device;
 use wgpu::util::DeviceExt;
@@ -27,9 +28,49 @@ impl Vertex {
     }
 }
 
+struct Shape {
+    shape: Vec<(f32, f32)>,
+    fill: bool,
+}
+
+impl Shape {
+    fn push(&mut self, p: (f32, f32)) {
+        self.shape.push(p)
+    }
+    fn is_empty(&self) -> bool {
+        self.shape.is_empty()
+    }
+    fn len(&self) -> usize {
+        self.shape.len()
+    }
+    fn last(&self) -> Option<&(f32, f32)> {
+        self.shape.last()
+    }
+    fn truncate(&mut self, offset: usize) {
+        self.shape.truncate(offset)
+    }
+}
+
+impl<'a> IntoIterator for &'a Shape {
+    type Item = &'a (f32, f32);
+    type IntoIter = std::slice::Iter<'a, (f32, f32)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.shape[..].into_iter()
+    }
+}
+
+impl Index<usize> for Shape {
+    type Output = (f32, f32);
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.shape.index(index)
+    }
+}
+
 pub struct State {
     cursor: (f32, f32),
-    points: Vec<Vec<(f32, f32)>>,
+    points: Vec<Shape>,
     vertices: Vec<f32>,
     indices: Vec<u16>,
     radius: f32,
@@ -128,7 +169,10 @@ impl State {
         if self.points.last().unwrap().is_empty() {
             return;
         }
-        self.points.push(Vec::new());
+        self.points.push(Shape {
+            shape: Vec::new(),
+            fill: false,
+        });
     }
     pub fn delete_path(&mut self) {
         if self.points.len() == 1 {
@@ -297,7 +341,7 @@ impl State {
 
         Self {
             cursor,
-            points: vec![vec![]],
+            points: vec![Shape { shape: vec![], fill: false }],
             vertices: Vec::new(),
             indices: Vec::new(),
             radius,
