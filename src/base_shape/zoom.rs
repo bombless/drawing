@@ -1,4 +1,4 @@
-use glam::{Mat4, Vec3};
+use glam::Mat4;
 use wgpu::util::DeviceExt;
 
 // 此属性标注数据的内存布局兼容 C-ABI，令其可用于着色器
@@ -14,12 +14,15 @@ pub struct Uniform {
 impl Uniform {
     pub fn new() -> Self {
         Self {
-            proj: glam::Mat4::IDENTITY.to_cols_array_2d(),
+            proj: Mat4::IDENTITY.to_cols_array_2d(),
         }
     }
 
     pub fn update_proj(&mut self, zoom: &Zoom) {
-        self.proj = zoom.zoom.to_cols_array_2d();
+        let mut scale = Mat4::IDENTITY.to_cols_array_2d();
+        scale[0][0] = 9.0 / 16.0;
+        let zoom = Mat4::from_cols_array_2d(&scale) * zoom.zoom;
+        self.proj = zoom.to_cols_array_2d();
     }
 }
 
@@ -29,7 +32,7 @@ pub struct Zoom {
 
 impl Zoom {
     pub fn new() -> Self {
-        Self { zoom: glam::Mat4::IDENTITY }
+        Self { zoom: Mat4::IDENTITY }
     }
 }
 
