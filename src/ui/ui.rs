@@ -50,14 +50,23 @@ impl State {
         } else {
             self.color().green_bind_group()
         };
-        rpass.set_bind_group(0, bind_group, &[]);
         rpass.set_vertex_buffer(0, self.buffer.slice(..));
         rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
 
         let index_buffer_len = self.index_buffer.size() as u32 / 2;
         let indices_len = self.indices.len() as u32;
 
-        rpass.draw_indexed(0..indices_len.min(index_buffer_len), 0, 0..1);
+        if index_buffer_len > 0 {
+            let count_cursor = self.segments_count as u32 * 3;
+
+            rpass.set_bind_group(0, self.color().red_bind_group(), &[]);
+
+            rpass.draw_indexed(0..count_cursor, 0, 0..1);
+
+            rpass.set_bind_group(0, self.color().green_bind_group(), &[]);
+
+            rpass.draw_indexed(count_cursor..indices_len.min(index_buffer_len), 0, 0..1);
+        }
 
         self.text.draw(rpass);
     }
@@ -101,12 +110,6 @@ impl State {
                 usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
             });
         self.index_buffer = index_buffer;
-    }
-    pub fn num_indices_cursor(&self) -> u32 {
-        self.segments_count as u32 * 3
-    }
-    pub fn num_indices_paths(&self) -> u32 {
-        self.segments_count as u32 * 3 * self.points.len() as u32
     }
     pub fn color(&self) -> &color::State {
         &self.color
@@ -218,7 +221,7 @@ impl State {
 
         let cursor = (0.0, 0.0);
 
-        let radius = 0.1f32;
+        let radius = 0.01f32;
 
         let segments_count = 6;
 
