@@ -17,6 +17,8 @@ struct State {
     base_shape: base_shape::State,
     track_cursor: PhysicalPosition<f64>,
     old_pos: PhysicalPosition<f64>,
+    last_track: PhysicalPosition<f64>,
+    pressed: bool,
 }
 
 impl Action for State {
@@ -31,6 +33,8 @@ impl Action for State {
             base_shape,
             track_cursor: PhysicalPosition::default(),
             old_pos: PhysicalPosition::default(),
+            last_track: PhysicalPosition::default(),
+            pressed: false,
         }
     }
     fn get_adapter_info(&self) -> wgpu::AdapterInfo {
@@ -63,16 +67,20 @@ impl Action for State {
         if let WindowEvent::CursorMoved { position: p, ..} = event {
             self.ui.update_cursor(&self.app.config, p.x as _, p.y as _);
             self.track_cursor = *p;
+            if self.pressed {
+                self.base_shape.change_zoom(&self.app.config, self.last_track, self.track_cursor);
+            }
+            self.last_track = *p;
         }
         if let WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, ..} = event {
             self.old_pos = self.track_cursor;
+            self.pressed = true;
         }
         if let WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Left, ..} = event {
             if self.old_pos == self.track_cursor {
                 self.ui.push_point();
-            } else {
-                self.base_shape.change_zoom(&self.app.config, self.old_pos, self.track_cursor);
             }
+            self.pressed = false;
         }
         false
     }
