@@ -1,3 +1,4 @@
+use glam::{Mat4, Vec3};
 use wgpu::util::DeviceExt;
 
 // 此属性标注数据的内存布局兼容 C-ABI，令其可用于着色器
@@ -18,25 +19,17 @@ impl Uniform {
     }
 
     pub fn update_proj(&mut self, zoom: &Zoom) {
-        self.proj = zoom.build_projection_matrix().to_cols_array_2d();
+        self.proj = zoom.zoom.to_cols_array_2d();
     }
 }
 
 pub struct Zoom {
-    zoom: [[f32; 4]; 4],
+    zoom: Mat4,
 }
 
 impl Zoom {
     pub fn new() -> Self {
-        Self { zoom: glam::Mat4::IDENTITY.to_cols_array_2d() }
-    }
-
-    pub fn build_projection_matrix(&self) -> glam::Mat4 {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let now = SystemTime::now();
-        let timestamp = now.duration_since(UNIX_EPOCH).unwrap().as_millis() as f64 / 1000.0;
-        let mat4 = glam::Mat4::from_translation(glam::vec3(timestamp.sin() as f32 * 0.3, -0.6, 0.0));
-        mat4
+        Self { zoom: glam::Mat4::IDENTITY }
     }
 }
 
@@ -51,6 +44,9 @@ pub struct State {
 impl State {
     pub fn update_proj(&mut self) {
         self.uniform.update_proj(&self.zoom);
+    }
+    pub fn translation(&mut self, x: f32, y: f32) {
+        self.zoom.zoom = self.zoom.zoom * Mat4::from_translation(glam::vec3(x, y, 0.0));
     }
     pub fn layout(&self) -> &wgpu::BindGroupLayout {
         &self.layout

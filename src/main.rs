@@ -2,7 +2,7 @@ use std::iter;
 
 use app_surface::{AppSurface, SurfaceFrame};
 use utils::framework::{Action, run};
-use winit::{dpi::PhysicalSize, window::WindowId};
+use winit::{dpi::{PhysicalPosition, PhysicalSize}, window::WindowId};
 use winit::event::{ElementState, MouseButton, WindowEvent};
 
 mod base_shape;
@@ -15,6 +15,8 @@ struct State {
     app: AppSurface,
     ui: ui::State,
     base_shape: base_shape::State,
+    track_cursor: PhysicalPosition<f64>,
+    old_pos: PhysicalPosition<f64>,
 }
 
 impl Action for State {
@@ -27,6 +29,8 @@ impl Action for State {
             app,
             ui,
             base_shape,
+            track_cursor: PhysicalPosition::default(),
+            old_pos: PhysicalPosition::default(),
         }
     }
     fn get_adapter_info(&self) -> wgpu::AdapterInfo {
@@ -58,9 +62,17 @@ impl Action for State {
         }
         if let WindowEvent::CursorMoved { position: p, ..} = event {
             self.ui.update_cursor(&self.app.config, p.x as _, p.y as _);
+            self.track_cursor = *p;
         }
         if let WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, ..} = event {
-            self.ui.push_point();
+            self.old_pos = self.track_cursor;
+        }
+        if let WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Left, ..} = event {
+            if self.old_pos == self.track_cursor {
+                self.ui.push_point();
+            } else {
+                self.base_shape.change_zoom(&self.app.config, self.old_pos, self.track_cursor);
+            }
         }
         false
     }
