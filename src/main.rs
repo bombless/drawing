@@ -3,7 +3,7 @@ use std::iter;
 use app_surface::{AppSurface, SurfaceFrame};
 use utils::framework::{Action, run};
 use winit::{dpi::{PhysicalPosition, PhysicalSize}, window::WindowId};
-use winit::event::{ElementState, MouseButton, WindowEvent};
+use winit::event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent};
 
 mod base_shape;
 mod ui;
@@ -19,6 +19,7 @@ struct State {
     old_pos: PhysicalPosition<f64>,
     last_track: PhysicalPosition<f64>,
     pressed: bool,
+    ctrl: bool,
 }
 
 impl Action for State {
@@ -35,6 +36,7 @@ impl Action for State {
             old_pos: PhysicalPosition::default(),
             last_track: PhysicalPosition::default(),
             pressed: false,
+            ctrl: false,
         }
     }
     fn get_adapter_info(&self) -> wgpu::AdapterInfo {
@@ -81,6 +83,12 @@ impl Action for State {
                 self.ui.push_point();
             }
             self.pressed = false;
+        }
+        if let WindowEvent::KeyboardInput { input: KeyboardInput { virtual_keycode, state, ..}, ..} = event {
+            if virtual_keycode == &Some(VirtualKeyCode::LControl) {
+                self.ctrl = state == &ElementState::Pressed;
+                println!("Ctrl {state:?}");
+            }
         }
         false
     }
