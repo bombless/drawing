@@ -346,13 +346,13 @@ impl State {
         let segments_count = 6;
 
 
-        let cursor_buffer = device
+        let buffer = device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
                 contents: &[],
                 usage: wgpu::BufferUsages::VERTEX,
             });
-        let cursor_index_buffer = device
+        let index_buffer = device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
                 contents: &[],
@@ -369,8 +369,10 @@ impl State {
             indices: Vec::new(),
             radius,
             segments_count,
-            buffer: cursor_buffer,
-            index_buffer: cursor_index_buffer, text, color,
+            buffer,
+            index_buffer,
+            text,
+            color,
         }
     }
 }
