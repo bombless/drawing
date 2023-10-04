@@ -139,8 +139,8 @@ impl State {
         self.update_points();
     }
 
-    fn fill_buffer(vertices: &mut Vec<f32>, indices: &mut Vec<u16>, origin: u16,
-                   factor: f32, radius: f32, x: f32, y: f32, count_segments: u32)
+    fn fill_buffer_with_a_point(vertices: &mut Vec<f32>, indices: &mut Vec<u16>, origin: u16,
+                                factor: f32, radius: f32, x: f32, y: f32, count_segments: u32)
     {
         vertices.push(x);
         vertices.push(y);
@@ -170,15 +170,15 @@ impl State {
         let radius = self.radius;
 
         if self.indices.is_empty() {
-            Self::fill_buffer(&mut self.vertices, &mut self.indices, 0,
-                              2.0 * std::f32::consts::PI / count_segments as f32, radius, x, y, count_segments);
+            Self::fill_buffer_with_a_point(&mut self.vertices, &mut self.indices, 0,
+                                           2.0 * std::f32::consts::PI / count_segments as f32, radius, x, y, count_segments);
 
         } else {
 
             let mut vertices = Vec::new();
             let mut indices = Vec::new();
-            Self::fill_buffer(&mut vertices, &mut indices, 0,
-                              2.0 * std::f32::consts::PI / count_segments as f32, radius, x, y, count_segments);
+            Self::fill_buffer_with_a_point(&mut vertices, &mut indices, 0,
+                                           2.0 * std::f32::consts::PI / count_segments as f32, radius, x, y, count_segments);
             self.vertices[..vertices.len()].copy_from_slice(&vertices);
             self.indices[..indices.len()].copy_from_slice(&indices);
         }
@@ -196,16 +196,52 @@ impl State {
         let segments_count = self.segments_count as _;
         let radius = self.radius;
 
-        let mut count = 0;
+        let mut count = segments_count as u16 + 1;
 
         self.vertices.truncate(self.segments_count * 2 + 2);
         self.indices.truncate(self.segments_count * 3);
 
         for segment in &self.points {
             for &(x, y) in segment {
+                Self::fill_buffer_with_a_point(&mut self.vertices, &mut self.indices, count,
+                                               2.0 * std::f32::consts::PI / segments_count as f32, radius, x, y, segments_count);
                 count += segments_count as u16 + 1;
-                Self::fill_buffer(&mut self.vertices, &mut self.indices, count,
-                                  2.0 * std::f32::consts::PI / segments_count as f32, radius, x, y, segments_count);
+            }
+        }
+
+        fn get_radian(p1: (f32, f32), p2: (f32, f32)) -> f32 {
+            ((p2.0 - p1.0) / (p2.1 - p1.1)).atan()
+        }
+
+        for segment in &self.points {
+            for i in 1 .. segment.len() {
+                let pre = segment[i - 1];
+                let cur = segment[i];
+
+                let radian = get_radian(pre, cur);
+                let offset_x1 = (radian + std::f32::consts::PI / 2.0).sin() * self.radius;
+                let offset_x2 = (radian - std::f32::consts::PI / 2.0).sin() * self.radius;
+                let offset_y1 = (radian + std::f32::consts::PI / 2.0).cos() * self.radius;
+                let offset_y2 = (radian - std::f32::consts::PI / 2.0).cos() * self.radius;
+
+                self.vertices.push(offset_x1 + pre.0);
+                self.vertices.push(offset_y1 + pre.1);
+                self.vertices.push(offset_x2 + pre.0);
+                self.vertices.push(offset_y2 + pre.1);
+                self.vertices.push(offset_x1 + cur.0);
+                self.vertices.push(offset_y1 + cur.1);
+                self.vertices.push(offset_x2 + cur.0);
+                self.vertices.push(offset_y2 + cur.1);
+
+                self.indices.push(count);
+                self.indices.push(count + 1);
+                self.indices.push(count + 2);
+
+                self.indices.push(count + 1);
+                self.indices.push(count + 2);
+                self.indices.push(count + 3);
+
+                count += 4;
             }
         }
 
