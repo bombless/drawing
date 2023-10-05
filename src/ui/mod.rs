@@ -1,34 +1,44 @@
 use app_surface::AppSurface;
-use wgpu::SurfaceConfiguration;
+use glam::Mat4;
+use wgpu::{ShaderStages, SurfaceConfiguration};
+use crate::uniform::Proxy as Uniform;
 
-mod color;
+
 mod ui;
 pub(super) mod text;
-mod transform;
+#[allow(unused)]
+mod dialog;
+mod utils;
 
 pub struct State {
     render_pipeline: wgpu::RenderPipeline,
     ui: ui::State,
-    transform: transform::State,
+    transform: Uniform,
+    color: Uniform,
+    dialog: dialog::State,
     ratio: f32,
 }
 
 impl State {
-    pub fn resize_view(&self, app: &AppSurface) {
+    pub fn resize_view(&mut self, app: &AppSurface) {
         self.ui.text().resize_view(app);
+        self.ratio = app.config.width as f32 / app.config.height as f32;
     }
     pub fn update(&mut self, app: &AppSurface) {
         self.ui.check_buffer(&app.device);
         app.queue.write_buffer(self.ui.buffer(), 0, self.ui.vertices());
         self.ui.check_index_buffer(&app.device);
         app.queue.write_buffer(self.ui.index_buffer(), 0, self.ui.indices());
-
-        self.transform.update_ratio(self.ratio);
-        app.queue.write_buffer(self.transform.buffer(), 0, self.transform.data());
+        self.ui.update_color(self.color.buffers(0), &app.queue);
+        self.ui.update_transform(self.transform.buffer(0, 0), &app.queue, self.ratio);
         self.ui.text_mut().process_queued(app);
+        self.dialog.update_transform(&app.queue, self.transform.buffer(1, 0), self.ratio);
+        self.dialog.update_color(&app.queue, self.color.buffer(1, 0));
     }
     pub fn update_cursor(&mut self, config: &SurfaceConfiguration, x: f32, y: f32) {
-        self.ui.update_cursor((x / config.width as f32 * 2.0 - 1.0) * self.ratio, 1.0 - y / config.height as f32 * 2.0);
+        let arg_x = (x / config.width as f32 * 2.0 - 1.0) * self.ratio;
+        let arg_y = 1.0 - y / config.height as f32 * 2.0;
+        self.ui.update_cursor(arg_x, arg_y, self.ratio);
     }
     pub fn new_path(&mut self, fill: bool) {
         self.ui.new_path(fill);
@@ -42,9 +52,13 @@ impl State {
     }
     pub fn draw<'a, 'b>(&'a mut self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
         rpass.set_pipeline(&self.render_pipeline);
-        rpass.set_bind_group(0, self.transform.bind_group(), &[]);
 
-        self.ui.draw(rpass);
+        rpass.set_bind_group(0, self.transform.bind_group(1, 0), &[]);
+        rpass.set_bind_group(1, self.color.bind_group(1, 0), &[]);
+        self.dialog.draw(rpass);
+
+        rpass.set_bind_group(0, self.transform.bind_group(0, 0), &[]);
+        self.ui.draw(rpass, self.color.buffers(0));
     }
     pub fn new(app: &AppSurface) -> Self {
 
@@ -58,14 +72,16 @@ impl State {
 
         let ratio = 16.0 / 9.0;
         let ui = ui::State::new(&app);
-        let transform = transform::State::new(&app.device);
+        let transform = Uniform::new(bytemuck::cast_slice(&Mat4::IDENTITY.to_cols_array_2d()), &[1, 1],  &app.device, ShaderStages::VERTEX);
+        let color = Uniform::new(bytemuck::cast_slice(&[1.0f32; 4]), &[2, 1], &app.device, ShaderStages::FRAGMENT);
+        let dialog = dialog::State::new(&app.device);
 
         let render_ui_pipeline_layout =
             app.device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
                     bind_group_layouts: &[
-                        transform.layout(), ui.color().layout()
+                        transform.layout(), color.layout()
                     ],
                     push_constant_ranges: &[],
                 });
@@ -116,6 +132,6 @@ impl State {
                 multiview: None,
             });
 
-        Self { render_pipeline, ui, transform, ratio }
+        Self { render_pipeline, ui, transform, color, dialog, ratio }
     }
 }

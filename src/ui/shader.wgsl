@@ -1,7 +1,7 @@
 // 顶点着色器
 
 struct ColorUniform {
-    color: vec3f,
+    color: vec4f,
 };
 @group(1) @binding(0) // 1.
 var<uniform> color: ColorUniform;
@@ -33,5 +33,5 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return vec4f(color.color, 1.0);
+    return color.color;
 }

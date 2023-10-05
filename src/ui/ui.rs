@@ -1,9 +1,10 @@
 use std::ops::Index;
 use app_surface::AppSurface;
-use wgpu::Device;
+use glam::{Mat4, vec3};
+use wgpu::{Buffer, Device, Queue};
 use wgpu::util::DeviceExt;
+use crate::uniform::BufferAndBindGroupBindingVec;
 
-use super::color;
 use super::text;
 
 #[repr(C)]
@@ -74,16 +75,15 @@ pub struct State {
     vertices: Vec<f32>,
     indices: Vec<u16>,
     radius: f32,
-    ratio: f32,
     segments_count: usize,
-    buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    color: color::State,
+    buffer: Buffer,
+    index_buffer: Buffer,
     text: text::State,
 }
 
 impl State {
-    pub fn draw<'a, 'b>(&'a self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
+    pub fn draw<'a, 'b>(&'a self, rpass: &mut wgpu::RenderPass<'b>, color_buffers: &'a BufferAndBindGroupBindingVec) where 'a: 'b {
+
         rpass.set_vertex_buffer(0, self.buffer.slice(..));
         rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
 
@@ -94,18 +94,26 @@ impl State {
             let count_cursor = self.segments_count as u32 * 3;
 
             if self.cursor.is_some() {
-                rpass.set_bind_group(1, self.color().red_bind_group(), &[]);
+                rpass.set_bind_group(1, color_buffers.bind_group(0), &[]);
 
                 rpass.draw_indexed(0..count_cursor, 0, 0..1);
             }
 
-            rpass.set_bind_group(1, self.color().green_bind_group(), &[]);
+            rpass.set_bind_group(1, color_buffers.bind_group(1), &[]);
 
 
             rpass.draw_indexed(count_cursor..indices_len.min(index_buffer_len), 0, 0..1);
         }
 
         self.text.draw(rpass);
+    }
+    pub fn update_color(&self, buffers: &BufferAndBindGroupBindingVec, queue: &Queue) {
+        queue.write_buffer(buffers.buffer(0), 0, bytemuck::cast_slice(&[1f32, 0.0, 1.0, 1.0]));
+        queue.write_buffer(buffers.buffer(1), 0, bytemuck::cast_slice(&[0f32, 1.0, 0.0, 1.0]));
+    }
+    pub fn update_transform(&self, buffer: &Buffer, queue: &Queue, ratio: f32) {
+        let transform = Mat4::from_scale(vec3(1.0 / ratio, 1.0, 1.0));
+        queue.write_buffer(buffer, 0, bytemuck::cast_slice(&transform.to_cols_array_2d()));
     }
     pub fn vertices(&self) -> &[u8] {
         bytemuck::cast_slice(&self.vertices)
@@ -147,9 +155,6 @@ impl State {
                 usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
             });
         self.index_buffer = index_buffer;
-    }
-    pub fn color(&self) -> &color::State {
-        &self.color
     }
     pub fn text(&self) -> &text::State {
         &self.text
@@ -206,8 +211,8 @@ impl State {
         indices.push(origin + 1);
     }
 
-    pub fn update_cursor(&mut self, x: f32, y: f32)  {
-        if x.abs() > 2.0 / self.ratio {
+    pub fn update_cursor(&mut self, x: f32, y: f32, ratio: f32)  {
+        if x.abs() > 2.0 / ratio {
             self.cursor = None;
             return;
         }
@@ -311,8 +316,6 @@ impl State {
 
         let radius = 0.01f32;
 
-        let ratio = 16.0 / 9.0;
-
         let segments_count = 6;
 
 
@@ -329,11 +332,8 @@ impl State {
                 usage: wgpu::BufferUsages::INDEX,
             });
 
-        let color = color::State::new(device);
-
         Self {
             cursor,
-            ratio,
             points: vec![Shape { shape: vec![], fill: false }],
             vertices: Vec::new(),
             indices: Vec::new(),
@@ -342,7 +342,6 @@ impl State {
             buffer,
             index_buffer,
             text,
-            color,
         }
     }
 }

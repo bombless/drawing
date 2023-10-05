@@ -7,7 +7,7 @@ use winit::event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, Win
 
 mod base_shape;
 mod ui;
-
+pub(crate) mod uniform;
 
 
 
@@ -50,8 +50,8 @@ impl Action for State {
         if self.app.config.width == size.width && self.app.config.height == size.height {
             return;
         }
-        self.app.resize_surface();
         self.ui.resize_view(&self.app);
+        self.app.resize_surface();
     }
     fn request_redraw(&mut self) {
         self.app.view.request_redraw();
