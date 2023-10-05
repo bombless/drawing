@@ -22,10 +22,13 @@ impl State {
         self.zoom.update_proj();
         queue.write_buffer(self.zoom.buffer(), 0, self.zoom.data());
     }
-    pub fn change_zoom(&mut self, config: &SurfaceConfiguration, p1: PhysicalPosition<f64>, p2: PhysicalPosition<f64>) {
+    pub fn translation(&mut self, config: &SurfaceConfiguration, p1: PhysicalPosition<f64>, p2: PhysicalPosition<f64>) {
         let offset_x = (p2.x - p1.x) as f32 / config.height as f32 * 2.0;
         let offset_y = -(p2.y - p1.y) as f32 / config.height as f32 * 2.0;
         self.zoom.translation(offset_x, offset_y);
+    }
+    pub fn resize_view(&mut self, config: &SurfaceConfiguration) {
+        self.zoom.scale_x(config.width as f32 / config.height as f32);
     }
     pub fn new(app: &AppSurface) -> Self {let zoom = zoom::State::new(&app.device);
         let basic_shape = base_shape::State::new(&app.device);

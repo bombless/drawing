@@ -51,6 +51,7 @@ impl Action for State {
             return;
         }
         self.ui.resize_view(&self.app);
+        self.base_shape.resize_view(&self.app.config);
         self.app.resize_surface();
     }
     fn request_redraw(&mut self) {
@@ -70,7 +71,7 @@ impl Action for State {
             self.ui.update_cursor(&self.app.config, p.x as _, p.y as _);
             self.track_cursor = *p;
             if self.pressed {
-                self.base_shape.change_zoom(&self.app.config, self.last_track, self.track_cursor);
+                self.base_shape.translation(&self.app.config, self.last_track, self.track_cursor);
             }
             self.last_track = *p;
         }

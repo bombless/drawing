@@ -9,18 +9,20 @@ pub struct Uniform {
     // glam 的数据类型不能直接用于 bytemuck
     // 需要先将 Matrix4 矩阵转为一个 4x4 的浮点数数组
     proj: [[f32; 4]; 4],
+    ratio: f32,
 }
 
 impl Uniform {
     pub fn new() -> Self {
         Self {
             proj: Mat4::IDENTITY.to_cols_array_2d(),
+            ratio: 16.0 / 9.0,
         }
     }
 
     pub fn update_proj(&mut self, zoom: &Zoom) {
         let mut scale = Mat4::IDENTITY.to_cols_array_2d();
-        scale[0][0] = 9.0 / 16.0;
+        scale[0][0] = 1.0 / self.ratio;
         let zoom = Mat4::from_cols_array_2d(&scale) * zoom.zoom;
         self.proj = zoom.to_cols_array_2d();
     }
@@ -50,6 +52,9 @@ impl State {
     }
     pub fn translation(&mut self, x: f32, y: f32) {
         self.zoom.zoom = self.zoom.zoom * Mat4::from_translation(glam::vec3(x, y, 0.0));
+    }
+    pub fn scale_x(&mut self, ratio: f32) {
+        self.uniform.ratio = ratio;
     }
     pub fn layout(&self) -> &wgpu::BindGroupLayout {
         &self.layout
