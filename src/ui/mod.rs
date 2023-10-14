@@ -2,12 +2,12 @@ use app_surface::AppSurface;
 use glam::Mat4;
 use wgpu::{ShaderStages, SurfaceConfiguration};
 use crate::uniform::Proxy as Uniform;
-
+use gallery::dialog;
 
 mod ui;
 pub(super) mod text;
-#[allow(unused)]
-mod dialog;
+
+mod gallery;
 mod utils;
 
 pub struct State {
