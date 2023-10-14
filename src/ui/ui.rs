@@ -29,6 +29,7 @@ impl Vertex {
     }
 }
 
+#[derive(Debug)]
 struct Shape {
     shape: Vec<(f32, f32)>,
     fill: bool,
@@ -183,6 +184,9 @@ impl State {
             self.points[0].truncate(0);
         } else {
             self.points.pop();
+        }
+        if self.points.len() == 1 {
+            self.points[0].fill = false;
         }
         self.update_points();
     }
