@@ -108,7 +108,7 @@ impl State {
         self.text.draw(rpass);
     }
     pub fn update_color(&self, buffers: &BufferAndBindGroupBindingVec, queue: &Queue) {
-        queue.write_buffer(buffers.buffer(0), 0, bytemuck::cast_slice(&[1f32, 0.0, 1.0, 1.0]));
+        queue.write_buffer(buffers.buffer(0), 0, bytemuck::cast_slice(&[1f32, 0.0, 0.0, 1.0]));
         queue.write_buffer(buffers.buffer(1), 0, bytemuck::cast_slice(&[0f32, 1.0, 0.0, 1.0]));
     }
     pub fn update_transform(&self, buffer: &Buffer, queue: &Queue, ratio: f32) {
