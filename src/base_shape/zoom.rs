@@ -1,4 +1,4 @@
-use glam::Mat4;
+use glam::{Mat4, vec3};
 use wgpu::util::DeviceExt;
 
 // 此属性标注数据的内存布局兼容 C-ABI，令其可用于着色器
@@ -21,20 +21,41 @@ impl Uniform {
     }
 
     pub fn update_proj(&mut self, zoom: &Zoom) {
+        let scale = Mat4::from_scale(vec3(1.0 / self.ratio, 1.0, 1.0));
+        let trans = Mat4::from_translation(vec3(0.0, 0.0, 0.2));
+        let scale_w = Mat4::from_cols_array_2d(&[
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 2.0],
+        ]);
+        let scale_z = Mat4::from_cols_array_2d(&[
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 0.5, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
+        let zoom = scale_z * scale_w * trans * scale * zoom.translation * zoom.camera;
+        self.proj = zoom.to_cols_array_2d();
+    }
+
+    pub fn get(&self, zoom: &Zoom) -> Mat4 {
         let mut scale = Mat4::IDENTITY.to_cols_array_2d();
         scale[0][0] = 1.0 / self.ratio;
-        let zoom = Mat4::from_cols_array_2d(&scale) * zoom.zoom;
-        self.proj = zoom.to_cols_array_2d();
+        scale[3][3] = 3.0;
+        let trans = Mat4::from_translation(vec3(0.0, 0.0, 0.3));
+        trans * Mat4::from_cols_array_2d(&scale) * zoom.translation * zoom.camera
     }
 }
 
 pub struct Zoom {
-    zoom: Mat4,
+    translation: Mat4,
+    camera: Mat4,
 }
 
 impl Zoom {
     pub fn new() -> Self {
-        Self { zoom: Mat4::IDENTITY }
+        Self { translation: Mat4::IDENTITY, camera: Mat4::IDENTITY }
     }
 }
 
@@ -51,7 +72,19 @@ impl State {
         self.uniform.update_proj(&self.zoom);
     }
     pub fn translation(&mut self, x: f32, y: f32) {
-        self.zoom.zoom = self.zoom.zoom * Mat4::from_translation(glam::vec3(x, y, 0.0));
+        self.zoom.translation = self.zoom.translation * Mat4::from_translation(glam::vec3(x, y, 0.0));
+    }
+    pub fn move_cam(&mut self, x: f32, y: f32) {
+        let distance = (x * x + y * y).sqrt();
+        let axis = vec3(y / distance, x / distance, 0.0);
+        let angle = Mat4::from_axis_angle(axis, distance);
+        // let rotate_x = Mat4::from_rotation_x(x);
+        // let rotate_y = Mat4::from_rotation_y(y);
+        // self.zoom.camera = rotate_x * rotate_y * angle * self.zoom.camera;
+        self.zoom.camera = angle * self.zoom.camera;
+    }
+    pub fn get_mat4(&self) -> Mat4 {
+        self.uniform.get(&self.zoom)
     }
     pub fn scale_x(&mut self, ratio: f32) {
         self.uniform.ratio = ratio;

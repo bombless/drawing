@@ -17,6 +17,7 @@ pub struct State {
     color: Uniform,
     dialog: dialog::State,
     ratio: f32,
+    info: Vec<String>,
 }
 
 impl State {
@@ -24,14 +25,15 @@ impl State {
         self.ui.text().resize_view(app);
         self.ratio = app.config.width as f32 / app.config.height as f32;
     }
-    pub fn update(&mut self, app: &AppSurface) {
+    pub fn update(&mut self, app: &AppSurface, info: Vec<String>) {
+        self.info = info;
         self.ui.check_buffer(&app.device);
         app.queue.write_buffer(self.ui.buffer(), 0, self.ui.vertices());
         self.ui.check_index_buffer(&app.device);
         app.queue.write_buffer(self.ui.index_buffer(), 0, self.ui.indices());
         self.ui.update_color(self.color.buffers(0), &app.queue);
         self.ui.update_transform(self.transform.buffer(0, 0), &app.queue, self.ratio);
-        self.ui.text_mut().process_queued(app);
+        self.ui.text_mut().process_queued(app, &self.info.iter().map(|x| &**x).collect::<Vec<_>>());
         self.dialog.update_transform(&app.queue, self.transform.buffer(1, 0), self.ratio);
         self.dialog.update_color(&app.queue, self.color.buffer(1, 0));
     }
@@ -132,6 +134,6 @@ impl State {
                 multiview: None,
             });
 
-        Self { render_pipeline, ui, transform, color, dialog, ratio }
+        Self { render_pipeline, ui, transform, color, dialog, ratio, info: Vec::new() }
     }
 }

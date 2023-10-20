@@ -1,6 +1,7 @@
 use std::iter;
 
 use app_surface::{AppSurface, SurfaceFrame};
+// use PMXUtil::reader::ModelInfoStage;
 use utils::framework::{Action, run};
 use winit::{dpi::{PhysicalPosition, PhysicalSize}, window::WindowId};
 use winit::event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent};
@@ -60,43 +61,53 @@ impl Action for State {
     fn input(&mut self, event: &WindowEvent) -> bool {
         if let WindowEvent::ReceivedCharacter('z') = event {
             self.ui.new_path(false);
+            return true;
         }
         if let WindowEvent::ReceivedCharacter('f') = event {
             self.ui.new_path(true);
+            return true;
         }
         if let WindowEvent::ReceivedCharacter('d') = event {
             self.ui.delete_path();
+            return true;
         }
         if let WindowEvent::CursorMoved { position: p, ..} = event {
             self.ui.update_cursor(&self.app.config, p.x as _, p.y as _);
             self.track_cursor = *p;
             if self.pressed {
-                self.base_shape.translation(&self.app.config, self.last_track, self.track_cursor);
+                if self.ctrl {
+                    self.base_shape.move_cam(&self.app.config, self.last_track, self.track_cursor);
+                } else {
+                    self.base_shape.translation(&self.app.config, self.last_track, self.track_cursor);
+                }
             }
             self.last_track = *p;
+            return true;
         }
         if let WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, ..} = event {
             self.old_pos = self.track_cursor;
             self.pressed = true;
+            return true;
         }
         if let WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Left, ..} = event {
             if self.old_pos == self.track_cursor {
                 self.ui.push_point();
             }
             self.pressed = false;
+            return true;
         }
         if let WindowEvent::KeyboardInput { input: KeyboardInput { virtual_keycode, state, ..}, ..} = event {
             if virtual_keycode == &Some(VirtualKeyCode::LControl) {
                 self.ctrl = state == &ElementState::Pressed;
-                println!("Ctrl {state:?}");
+                return true;
             }
         }
         false
     }
 
     fn update(&mut self) {
-        self.base_shape.update(&self.app.queue);
-        self.ui.update(&self.app);
+        let info = self.base_shape.update(&self.app.queue);
+        self.ui.update(&self.app, info);
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -143,4 +154,29 @@ impl Action for State {
 
 fn main() {
     run::<State>(None, None);
+    // let model_info_loader=PMXUtil::reader::ModelInfoStage::open("./琳妮特/【琳妮特】.pmx");
+    // let (model_info, vertices_loader)=model_info_loader.unwrap().read();
+    // println!("model_info {model_info:?}");
+    // let (v, f) = vertices_loader.read();
+    // println!("v {v:?}");
+    // let (f, t) = f.read();
+    // println!("face {f:?}");
+    // let (v, m) = t.read();
+    // println!("v {v:?}");
+    // let (m, b) = m.read();
+    // println!("m {m:?}");
+    // let (b, pose) = b.read();
+    // println!("b {b:?}");
+    // let (pose, frame) = pose.read();
+    // println!("pose {pose:?}");
+    // let (frame, r) = frame.read();
+    // println!("frame {frame:?}");
+    // let (r, j) = r.read();
+    // println!("r {r:?}");
+    // let (j, s) = j.read();
+    // println!("j {j:?}");
+    // let s = if let Some(x) = s { x } else { return };
+    // let s = s.read();
+    // println!("s {s:?}");
+
 }

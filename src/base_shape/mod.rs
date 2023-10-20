@@ -1,4 +1,5 @@
 use app_surface::AppSurface;
+use glam::{Vec4, vec4};
 use wgpu::{Queue, SurfaceConfiguration};
 use winit::dpi::PhysicalPosition;
 
@@ -18,14 +19,30 @@ impl State {
 
         self.basic_shape.draw(rpass);
     }
-    pub fn update(&mut self, queue: &Queue) {
+    pub fn update(&mut self, queue: &Queue) -> Vec<String> {
         self.zoom.update_proj();
+
+        let mut ret = Vec::new();
+
+        let f = self.zoom.get_mat4();
+        for v in base_shape::VERTICES {
+            let pos = vec4(v.position[0], v.position[1], v.position[2], 1.0);
+            ret.push(format!("{:?} {:?}", v.color, f * pos));
+        }
+
         queue.write_buffer(self.zoom.buffer(), 0, self.zoom.data());
+
+        ret
     }
     pub fn translation(&mut self, config: &SurfaceConfiguration, p1: PhysicalPosition<f64>, p2: PhysicalPosition<f64>) {
         let offset_x = (p2.x - p1.x) as f32 / config.height as f32 * 2.0;
         let offset_y = -(p2.y - p1.y) as f32 / config.height as f32 * 2.0;
         self.zoom.translation(offset_x, offset_y);
+    }
+    pub fn move_cam(&mut self, config: &SurfaceConfiguration, p1: PhysicalPosition<f64>, p2: PhysicalPosition<f64>) {
+        let offset_x = (p2.x - p1.x) as f32 / config.height as f32 * 2.0;
+        let offset_y = -(p2.y - p1.y) as f32 / config.height as f32 * 2.0;
+        self.zoom.move_cam(offset_x, offset_y);
     }
     pub fn resize_view(&mut self, config: &SurfaceConfiguration) {
         self.zoom.scale_x(config.width as f32 / config.height as f32);

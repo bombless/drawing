@@ -1,5 +1,6 @@
 use wgpu_text::{glyph_brush::{Section as TextSection, Text}, BrushBuilder, TextBrush};
 use glyph_brush::ab_glyph::FontRef;
+use glyph_brush::Layout;
 
 pub struct State {
     brush: TextBrush<FontRef<'static>>,
@@ -17,8 +18,17 @@ impl State {
         }
     }
 
-    pub fn process_queued(&mut self, app: &app_surface::AppSurface) {
-        self.brush.queue(&app.device, &app.queue, vec![&self.section]).unwrap();
+    pub fn process_queued(&mut self, app: &app_surface::AppSurface, info: &[&str]) {
+        let mut sections = vec![&self.section];
+        let mut offset = 0.0;
+        let info = info.iter().map(|x| {
+            offset += 20.0;
+            TextSection::default()
+                .add_text(Text::new(*x))
+                .with_screen_position((0.0, offset))
+        }).collect::<Vec<_>>();
+        sections.extend(&info);
+        self.brush.queue(&app.device, &app.queue, sections).unwrap();
     }
 
     pub fn draw<'a, 'b>(&'a self, rpass: &mut wgpu::RenderPass<'b>) where 'a: 'b {
