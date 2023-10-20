@@ -43,8 +43,9 @@ impl Uniform {
         let mut scale = Mat4::IDENTITY.to_cols_array_2d();
         scale[0][0] = 1.0 / self.ratio;
         scale[3][3] = 3.0;
+        let pre_trans = Mat4::from_translation(vec3(0.0, 0.0, -0.3));
         let trans = Mat4::from_translation(vec3(0.0, 0.0, 0.3));
-        trans * Mat4::from_cols_array_2d(&scale) * zoom.translation * zoom.camera
+        trans * Mat4::from_cols_array_2d(&scale) * zoom.translation * zoom.camera * pre_trans
     }
 }
 
@@ -76,7 +77,7 @@ impl State {
     }
     pub fn move_cam(&mut self, x: f32, y: f32) {
         let distance = (x * x + y * y).sqrt();
-        let axis = vec3(y / distance, x / distance, 0.0);
+        let axis = vec3(-y / distance, -x / distance, 0.0);
         let angle = Mat4::from_axis_angle(axis, distance);
         // let rotate_x = Mat4::from_rotation_x(x);
         // let rotate_y = Mat4::from_rotation_y(y);
