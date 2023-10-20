@@ -8,6 +8,7 @@ use winit::event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, Win
 
 mod base_shape;
 mod ui;
+mod texture;
 pub(crate) mod uniform;
 
 
@@ -15,6 +16,7 @@ pub(crate) mod uniform;
 struct State {
     app: AppSurface,
     ui: ui::State,
+    depth_texture: texture::Texture,
     base_shape: base_shape::State,
     track_cursor: PhysicalPosition<f64>,
     old_pos: PhysicalPosition<f64>,
@@ -29,10 +31,13 @@ impl Action for State {
         let ui = ui::State::new(&app);
         let base_shape = base_shape::State::new(&app);
 
+        let depth_texture = texture::Texture::create_depth_texture(&app.device, &app.config, "depth_texture");
+
         Self {
             app,
             ui,
             base_shape,
+            depth_texture,
             track_cursor: PhysicalPosition::default(),
             old_pos: PhysicalPosition::default(),
             last_track: PhysicalPosition::default(),
@@ -51,6 +56,7 @@ impl Action for State {
         if self.app.config.width == size.width && self.app.config.height == size.height {
             return;
         }
+        self.depth_texture = texture::Texture::create_depth_texture(&self.app.device, &self.app.config, "depth_texture");
         self.ui.resize_view(&self.app);
         self.base_shape.resize_view(&self.app.config);
         self.app.resize_surface();
@@ -137,7 +143,14 @@ impl Action for State {
                         store: true,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
             });
 
             self.base_shape.draw(&mut render_pass);

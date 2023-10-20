@@ -1,7 +1,8 @@
 use app_surface::AppSurface;
-use glam::{Vec4, vec4};
+use glam::vec4;
 use wgpu::{Queue, SurfaceConfiguration};
 use winit::dpi::PhysicalPosition;
+use crate::texture::Texture;
 
 mod base_shape;
 mod zoom;
@@ -90,7 +91,7 @@ impl State {
                     })],
                 }),
                 primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    topology: wgpu::PrimitiveTopology::default(),
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
                     cull_mode: Some(wgpu::Face::Back),
@@ -102,7 +103,13 @@ impl State {
                     // Requires Features::CONSERVATIVE_RASTERIZATION
                     conservative: false,
                 },
-                depth_stencil: None,
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: Texture::DEPTH_FORMAT,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less, // 1.
+                    stencil: wgpu::StencilState::default(), // 2.
+                    bias: wgpu::DepthBiasState::default(),
+                }),
                 multisample: wgpu::MultisampleState {
                     count: 1,
                     mask: !0,

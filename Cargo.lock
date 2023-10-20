@@ -3,6 +3,16 @@
 version = 3
 
 [[package]]
+name = "PMXUtil"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "884e529f32d1262cf21f3874276e0bcbab4ecc0148b21f9b584e7db3c4c626f8"
+dependencies = [
+ "bitflags 1.3.2",
+ "encoding_rs",
+]
+
+[[package]]
 name = "ab_glyph"
 version = "0.2.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -612,10 +622,12 @@ checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 name = "drawing"
 version = "0.1.0"
 dependencies = [
+ "PMXUtil",
  "app-surface",
  "bytemuck",
  "glam",
  "glyph_brush",
+ "rand",
  "utils",
  "wgpu",
  "wgpu_text",
@@ -641,6 +653,15 @@ name = "either"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
+
+[[package]]
+name = "encoding_rs"
+version = "0.8.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7268b386296a025e474d5140678f75d6de9493ae55a5d709eeb9dd08149945e1"
+dependencies = [
+ "cfg-if",
+]
 
 [[package]]
 name = "env_logger"
